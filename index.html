@@ -796,11 +796,15 @@
           <div class="toggle-switch" id="toggleHairline"></div>
         </div>
         <div class="panel-body" id="panelHairline">
-          <div class="control-group">
-            <label class="control-label">헤어라인 내리기</label>
+          <p class="mole-info">
+            <strong>헤어라인 페인팅 모드</strong>가 활성화되면 헤어라인 영역을 직접 칠하세요.<br/>
+            드래그하여 원하는 위치에 헤어라인을 자유롭게 그릴 수 있습니다.
+          </p>
+          <div class="control-group" style="margin-top:10px">
+            <label class="control-label">브러시 크기</label>
             <div class="range-row">
-              <input type="range" id="hairlineOffset" min="0" max="30" value="0" />
-              <span id="hairlineOffsetVal">0px</span>
+              <input type="range" id="hairlineBrushSize" min="3" max="30" value="8" />
+              <span id="hairlineBrushSizeVal">8</span>
             </div>
           </div>
           <div class="control-group">
@@ -815,13 +819,13 @@
             </div>
           </div>
           <div class="control-group">
-            <label class="control-label">밀도</label>
+            <label class="control-label">투명도</label>
             <div class="range-row">
-              <input type="range" id="hairlineDensity" min="10" max="100" value="60" />
-              <span id="hairlineDensityVal">60%</span>
+              <input type="range" id="hairlineOpacity" min="10" max="100" value="70" />
+              <span id="hairlineOpacityVal">70%</span>
             </div>
           </div>
-          <div class="drag-hint">드래그로 헤어라인 위치를 미세 조정할 수 있습니다</div>
+          <div class="drag-hint">헤어라인 영역을 직접 칠하여 자연스러운 헤어라인을 만드세요</div>
         </div>
       </div>
 
@@ -842,7 +846,7 @@ const DEFAULTS = {
   eyeliner: { enabled: false, style: 'natural', color: '#1a1a1a', thickness: 2, offsetX: 0, offsetY: 0 },
   lip:      { enabled: false, color: '#c44569', opacity: 0.45, gradient: 0.5, offsetX: 0, offsetY: 0 },
   mole:     { enabled: false, brushSize: 15 },
-  hairline: { enabled: false, offset: 0, color: '#2c1810', density: 0.6, offsetX: 0, offsetY: 0 },
+  hairline: { enabled: false, color: '#2c1810', brushSize: 8, opacity: 0.7 },
 };
 
 // ---- State ----
@@ -868,6 +872,11 @@ const interactionCanvas = $('#interactionCanvas');
 const pCtx = photoCanvas.getContext('2d');
 const oCtx = overlayCanvas.getContext('2d');
 const iCtx = interactionCanvas.getContext('2d');
+
+// Hairline offscreen canvas for manual painting
+let hairlineCanvas = document.createElement('canvas');
+let hCtx = hairlineCanvas.getContext('2d');
+const hairlinePaint = { active: false, lastX: 0, lastY: 0 };
 
 // ---- Helpers ----
 function hexToRgb(hex) {
@@ -939,6 +948,8 @@ async function loadImage(img) {
   w = Math.round(w); h = Math.round(h);
 
   [photoCanvas, overlayCanvas, interactionCanvas].forEach(c => { c.width = w; c.height = h; });
+  hairlineCanvas.width = w; hairlineCanvas.height = h;
+  hCtx = hairlineCanvas.getContext('2d');
 
   pCtx.drawImage(img, 0, 0, w, h);
   state.image = img;
@@ -968,13 +979,16 @@ async function loadImage(img) {
 // ---- Drawing ----
 function redraw() {
   oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-  if (!state.landmarks) return;
-  const pts = state.landmarks.positions;
 
-  if (state.features.eyebrow.enabled) drawEyebrows(pts);
-  if (state.features.eyeliner.enabled) drawEyeliner(pts);
-  if (state.features.lip.enabled) drawLips(pts);
-  if (state.features.hairline.enabled) drawHairline(pts);
+  if (state.landmarks) {
+    const pts = state.landmarks.positions;
+    if (state.features.eyebrow.enabled) drawEyebrows(pts);
+    if (state.features.eyeliner.enabled) drawEyeliner(pts);
+    if (state.features.lip.enabled) drawLips(pts);
+  }
+
+  // Hairline is manual painting, works without landmarks
+  if (state.features.hairline.enabled) drawHairline();
 }
 
 // -- Eyebrow --
@@ -1216,92 +1230,102 @@ function removeMoleAt(x, y, brushSize) {
   const r = brushSize;
   const cw = photoCanvas.width, ch = photoCanvas.height;
 
-  // Create temp canvas for smooth blending
-  const tmp = document.createElement('canvas');
-  tmp.width = cw; tmp.height = ch;
-  const tCtx = tmp.getContext('2d');
-  tCtx.drawImage(photoCanvas, 0, 0);
+  // Get image data for a region around the click
+  const margin = Math.ceil(r * 2.5);
+  const sx = Math.max(0, Math.round(x - margin));
+  const sy = Math.max(0, Math.round(y - margin));
+  const sw = Math.min(cw - sx, Math.ceil(margin * 2));
+  const sh = Math.min(ch - sy, Math.ceil(margin * 2));
+  if (sw <= 0 || sh <= 0) return;
 
-  // Sample surrounding pixels in a ring pattern
-  const sampleRadius = r * 1.8;
-  const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
-  let totalR = 0, totalG = 0, totalB = 0, count = 0;
+  const imageData = pCtx.getImageData(sx, sy, sw, sh);
+  const origData = new Uint8ClampedArray(imageData.data);
+  const data = imageData.data;
+  const cx = x - sx;
+  const cy = y - sy;
 
-  try {
-    angles.forEach(angle => {
-      const sx = Math.round(x + Math.cos(angle) * sampleRadius);
-      const sy = Math.round(y + Math.sin(angle) * sampleRadius);
-      if (sx >= 0 && sx < cw && sy >= 0 && sy < ch) {
-        const pixel = pCtx.getImageData(sx, sy, 1, 1).data;
-        totalR += pixel[0]; totalG += pixel[1]; totalB += pixel[2];
-        count++;
+  // Collect boundary samples from a ring just outside the brush
+  const numSamples = 36;
+  const rings = [r * 1.15, r * 1.4, r * 1.7];
+  const samples = [];
+  for (const sampleR of rings) {
+    for (let i = 0; i < numSamples; i++) {
+      const angle = (i / numSamples) * Math.PI * 2;
+      const sampX = Math.round(cx + Math.cos(angle) * sampleR);
+      const sampY = Math.round(cy + Math.sin(angle) * sampleR);
+      if (sampX >= 0 && sampX < sw && sampY >= 0 && sampY < sh) {
+        const idx = (sampY * sw + sampX) * 4;
+        samples.push({ x: sampX, y: sampY, angle, r: origData[idx], g: origData[idx+1], b: origData[idx+2] });
       }
-    });
-  } catch(e) { return; }
-
-  if (count === 0) return;
-  const avgR = totalR / count, avgG = totalG / count, avgB = totalB / count;
-
-  // Paint averaged color over the spot area with soft circular gradient
-  pCtx.save();
-  const grad = pCtx.createRadialGradient(x, y, 0, x, y, r);
-  grad.addColorStop(0, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},1)`);
-  grad.addColorStop(0.6, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},0.8)`);
-  grad.addColorStop(1, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},0)`);
-  pCtx.fillStyle = grad;
-  pCtx.beginPath();
-  pCtx.arc(x, y, r, 0, Math.PI * 2);
-  pCtx.fill();
-
-  // Second pass: blur from surrounding area for texture
-  pCtx.globalAlpha = 0.5;
-  pCtx.beginPath();
-  pCtx.arc(x, y, r * 0.8, 0, Math.PI * 2);
-  pCtx.clip();
-  pCtx.filter = `blur(${r * 0.5}px)`;
-  pCtx.drawImage(tmp, Math.max(0, x - r*2), Math.max(0, y - r*2), r*4, r*4,
-                       Math.max(0, x - r*2), Math.max(0, y - r*2), r*4, r*4);
-  pCtx.filter = 'none';
-  pCtx.restore();
-}
-
-// -- Hairline --
-function drawHairline(pts) {
-  const f = state.features.hairline;
-  if (f.offset <= 0) return;
-  const ox = f.offsetX, oy = f.offsetY;
-
-  oCtx.save();
-  const browLeft = pts[17], browRight = pts[26], browCenter = pts[19];
-  const startX = browLeft.x - 10 + ox;
-  const endX = browRight.x + 10 + ox;
-  const baseY = Math.min(browLeft.y, browCenter.y, browRight.y) - 5 + oy;
-
-  const rgb = hexToRgb(f.color);
-  const density = Math.floor(f.density * 100);
-  const offset = f.offset;
-
-  for (let i = 0; i < density; i++) {
-    const t = i / density;
-    const x = startX + (endX - startX) * t;
-    const yBase = baseY - offset + Math.sin(t * Math.PI) * (offset * 0.3);
-
-    for (let j = 0; j < 3; j++) {
-      const hairX = x + (Math.random() - 0.5) * 4;
-      const hairY = yBase + Math.random() * offset;
-      const hairLen = 3 + Math.random() * (offset * 0.5);
-      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
-
-      oCtx.globalAlpha = 0.3 + Math.random() * 0.4;
-      oCtx.beginPath();
-      oCtx.moveTo(hairX, hairY);
-      oCtx.lineTo(hairX + Math.cos(angle) * hairLen, hairY + Math.sin(angle) * hairLen);
-      oCtx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${0.4 + Math.random() * 0.5})`;
-      oCtx.lineWidth = 0.5 + Math.random() * 1;
-      oCtx.stroke();
     }
   }
-  oCtx.restore();
+  if (samples.length === 0) return;
+
+  // For each pixel inside the brush, interpolate from boundary samples
+  for (let py = 0; py < sh; py++) {
+    for (let px = 0; px < sw; px++) {
+      const dx = px - cx;
+      const dy = py - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > r) continue;
+
+      // Smoothstep blend: strongest at center, fades at edge
+      const t = dist / r;
+      const blend = 1.0 - t * t * (3.0 - 2.0 * t);
+
+      // Weighted average of boundary samples (angular + distance proximity)
+      const angle = Math.atan2(dy, dx);
+      let totalW = 0, avgR = 0, avgG = 0, avgB = 0;
+      for (const s of samples) {
+        let ad = Math.abs(s.angle - angle);
+        if (ad > Math.PI) ad = Math.PI * 2 - ad;
+        const w = Math.pow(Math.max(0, Math.cos(ad * 0.8)), 3);
+        totalW += w;
+        avgR += s.r * w;
+        avgG += s.g * w;
+        avgB += s.b * w;
+      }
+      if (totalW === 0) continue;
+      avgR /= totalW; avgG /= totalW; avgB /= totalW;
+
+      const dstIdx = (py * sw + px) * 4;
+      data[dstIdx]     = Math.round(origData[dstIdx]     * (1 - blend) + avgR * blend);
+      data[dstIdx + 1] = Math.round(origData[dstIdx + 1] * (1 - blend) + avgG * blend);
+      data[dstIdx + 2] = Math.round(origData[dstIdx + 2] * (1 - blend) + avgB * blend);
+    }
+  }
+
+  pCtx.putImageData(imageData, sx, sy);
+}
+
+// -- Hairline (manual painting mode) --
+function drawHairline() {
+  if (hairlineCanvas.width > 0 && hairlineCanvas.height > 0) {
+    oCtx.drawImage(hairlineCanvas, 0, 0);
+  }
+}
+
+function paintHairlineAt(x, y) {
+  const f = state.features.hairline;
+  const rgb = hexToRgb(f.color);
+  const r = f.brushSize;
+  const grad = hCtx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${f.opacity * 0.8})`);
+  grad.addColorStop(0.5, `rgba(${rgb.r},${rgb.g},${rgb.b},${f.opacity * 0.4})`);
+  grad.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+  hCtx.fillStyle = grad;
+  hCtx.beginPath();
+  hCtx.arc(x, y, r, 0, Math.PI * 2);
+  hCtx.fill();
+}
+
+function paintHairlineLine(x1, y1, x2, y2) {
+  const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+  const steps = Math.max(1, Math.floor(dist / 3));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    paintHairlineAt(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
+  }
 }
 
 // ---- Hit-testing for drag ----
@@ -1333,11 +1357,6 @@ function getFeatureBounds(featureKey) {
       indices = [48,49,50,51,52,53,54,55,56,57,58,59];
       ox = state.features.lip.offsetX; oy = state.features.lip.offsetY;
       break;
-    case 'hairline':
-      if (!state.features.hairline.enabled) return null;
-      indices = [17,19,26];
-      ox = state.features.hairline.offsetX; oy = state.features.hairline.offsetY;
-      break;
     default: return null;
   }
 
@@ -1353,7 +1372,7 @@ function getFeatureBounds(featureKey) {
 }
 
 function hitTestFeature(cx, cy) {
-  const order = ['eyebrowLeft', 'eyebrowRight', 'eyeliner', 'lip', 'hairline'];
+  const order = ['eyebrowLeft', 'eyebrowRight', 'eyeliner', 'lip'];
   for (const key of order) {
     const b = getFeatureBounds(key);
     if (b && cx >= b.minX && cx <= b.maxX && cy >= b.minY && cy <= b.maxY) return key;
@@ -1382,10 +1401,22 @@ function isFeatureEnabled(featureKey) {
 }
 
 interactionCanvas.addEventListener('mousedown', (e) => {
-  if (!state.landmarks) return;
   const { x, y } = getCanvasCoords(e);
 
   if (state.features.mole.enabled) return;
+
+  // Hairline painting mode
+  if (state.features.hairline.enabled) {
+    hairlinePaint.active = true;
+    hairlinePaint.lastX = x;
+    hairlinePaint.lastY = y;
+    paintHairlineAt(x, y);
+    redraw();
+    e.preventDefault();
+    return;
+  }
+
+  if (!state.landmarks) return;
 
   const feature = hitTestFeature(x, y);
   if (feature && isFeatureEnabled(feature)) {
@@ -1409,6 +1440,26 @@ interactionCanvas.addEventListener('mousemove', (e) => {
     const dy = y - drag.startY;
     setDragOffset(drag.feature, drag.origOX + dx, drag.origOY + dy);
     redraw();
+    return;
+  }
+
+  if (hairlinePaint.active) {
+    paintHairlineLine(hairlinePaint.lastX, hairlinePaint.lastY, x, y);
+    hairlinePaint.lastX = x;
+    hairlinePaint.lastY = y;
+    redraw();
+    return;
+  }
+
+  if (state.features.hairline.enabled) {
+    iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
+    iCtx.beginPath();
+    iCtx.arc(x, y, state.features.hairline.brushSize, 0, Math.PI * 2);
+    iCtx.strokeStyle = 'rgba(72,207,203,0.7)';
+    iCtx.lineWidth = 2;
+    iCtx.setLineDash([4, 4]);
+    iCtx.stroke();
+    iCtx.setLineDash([]);
     return;
   }
 
@@ -1436,6 +1487,10 @@ interactionCanvas.addEventListener('mouseup', (e) => {
     interactionCanvas.style.cursor = 'crosshair';
     return;
   }
+  if (hairlinePaint.active) {
+    hairlinePaint.active = false;
+    return;
+  }
 });
 
 interactionCanvas.addEventListener('mouseleave', () => {
@@ -1443,6 +1498,7 @@ interactionCanvas.addEventListener('mouseleave', () => {
     drag.active = false;
     drag.feature = null;
   }
+  hairlinePaint.active = false;
   iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
   interactionCanvas.style.cursor = 'crosshair';
 });
@@ -1526,9 +1582,11 @@ function resetControlUI(key) {
       $('#moleSize').value = 15; $('#moleSizeVal').textContent = '15';
       break;
     case 'hairline':
-      $('#hairlineOffset').value = 0; $('#hairlineOffsetVal').textContent = '0px';
+      $('#hairlineBrushSize').value = 8; $('#hairlineBrushSizeVal').textContent = '8';
       $('#hairlineColor').value = '#2c1810';
-      $('#hairlineDensity').value = 60; $('#hairlineDensityVal').textContent = '60%';
+      $('#hairlineOpacity').value = 70; $('#hairlineOpacityVal').textContent = '70%';
+      // Clear painted hairline
+      hCtx.clearRect(0, 0, hairlineCanvas.width, hairlineCanvas.height);
       break;
   }
 }
@@ -1592,8 +1650,8 @@ bindRange('eyelinerThickness', 'eyeliner', 'thickness', 'eyelinerThicknessVal');
 bindRange('lipOpacity', 'lip', 'opacity', 'lipOpacityVal', '%', v => v / 100);
 bindRange('lipGradient', 'lip', 'gradient', 'lipGradientVal', '%', v => v / 100);
 bindRange('moleSize', 'mole', 'brushSize', 'moleSizeVal');
-bindRange('hairlineOffset', 'hairline', 'offset', 'hairlineOffsetVal', 'px');
-bindRange('hairlineDensity', 'hairline', 'density', 'hairlineDensityVal', '%', v => v / 100);
+bindRange('hairlineBrushSize', 'hairline', 'brushSize', 'hairlineBrushSizeVal');
+bindRange('hairlineOpacity', 'hairline', 'opacity', 'hairlineOpacityVal', '%', v => v / 100);
 
 // ---- Toolbar Actions ----
 
@@ -1613,6 +1671,7 @@ $('#btnDelete').addEventListener('click', () => {
   pCtx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
   oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
   iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
+  hCtx.clearRect(0, 0, hairlineCanvas.width, hairlineCanvas.height);
 
   canvasContainer.classList.remove('visible');
   uploadZone.classList.remove('hidden');
@@ -1631,6 +1690,7 @@ $('#btnReset').addEventListener('click', () => {
   });
   $$('.toggle-switch').forEach(t => t.classList.remove('active'));
   $$('.panel-body').forEach(p => p.classList.remove('open'));
+  hCtx.clearRect(0, 0, hairlineCanvas.width, hairlineCanvas.height);
   redraw();
   showToast('초기화 되었습니다.');
 });
