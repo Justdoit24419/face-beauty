@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 얼굴 뷰티 시뮬레이터</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+  <style>
+    :root {
+      --bg: #0c0b1a;
+      --surface: #16152b;
+      --card: #1e1d38;
+      --border: rgba(255,255,255,0.08);
+      --text: #e8e6f0;
+      --muted: #8a87a8;
+      --accent: #c471f5;
+      --accent2: #fa71cd;
+      --accent3: #48cfcb;
+      --glow: rgba(196,113,245,0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Space Grotesk", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background decoration */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%; left: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(196,113,245,0.15), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%; right: -10%;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(72,207,203,0.12), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      text-align: center;
+      padding: 32px 20px 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 0.95rem;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ---- Canvas Area ---- */
+    .canvas-area {
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 500px;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .canvas-toolbar button {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .canvas-toolbar button:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .canvas-toolbar .spacer { flex: 1; }
+
+    .canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 16px;
+    }
+
+    #uploadZone {
+      width: 100%;
+      height: 100%;
+      min-height: 400px;
+      border: 2px dashed rgba(196,113,245,0.3);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    #uploadZone:hover, #uploadZone.dragover {
+      border-color: var(--accent);
+    }
+
+    #uploadZone .icon {
+      font-size: 3rem;
+      opacity: 0.5;
+    }
+
+    #uploadZone p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    #uploadZone.hidden { display: none; }
+
+    .canvas-container {
+      position: relative;
+      display: none;
+      max-width: 100%;
+      max-height: 70vh;
+    }
+
+    .canvas-container.visible { display: block; }
+
+    #photoCanvas {
+      display: block;
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+    }
+
+    #overlayCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      pointer-events: none;
+      border-radius: 8px;
+    }
+
+    #interactionCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      cursor: crosshair;
+      border-radius: 8px;
+    }
+
+    /* Compare slider */
+    .compare-slider {
+      position: absolute;
+      top: 0; left: 50%;
+      width: 3px; height: 100%;
+      background: var(--accent);
+      cursor: ew-resize;
+      display: none;
+      z-index: 10;
+    }
+
+    .compare-slider::after {
+      content: '⟷';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--accent);
+      color: #fff;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* ---- Control Panel ---- */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-card {
+      background: var(--surface);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .panel-header:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .panel-header h3 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-header .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(196,113,245,0.15);
+      color: var(--accent);
+    }
+
+    .toggle-switch {
+      width: 40px; height: 22px;
+      background: #333;
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.3s;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(18px);
+    }
+
+    .panel-body {
+      padding: 0 16px 16px;
+      display: none;
+    }
+
+    .panel-body.open { display: block; }
+
+    /* Controls */
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .style-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .style-btn {
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      font-family: inherit;
+    }
+
+    .style-btn:hover { border-color: var(--accent); }
+
+    .style-btn.active {
+      border-color: var(--accent);
+      background: rgba(196,113,245,0.15);
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .color-row input[type="color"] {
+      width: 36px; height: 36px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: none;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    .color-presets {
+      display: flex;
+      gap: 5px;
+    }
+
+    .color-dot {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .color-dot:hover, .color-dot.active {
+      border-color: #fff;
+      transform: scale(1.15);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--card);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .range-row span {
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    .mole-info {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .mole-info strong {
+      color: var(--accent);
+    }
+
+    .spot-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .spot-tag {
+      padding: 4px 10px;
+      background: rgba(250,113,205,0.15);
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--accent2);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .spot-tag:hover { background: rgba(250,113,205,0.3); }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(12,11,26,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      gap: 16px;
+    }
+
+    .loading-overlay.hidden { display: none; }
+
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-overlay p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* Status bar */
+    .status-bar {
+      padding: 8px 16px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+    }
+
+    .status-dot.ready { background: var(--accent3); }
+    .status-dot.processing { background: #f5a623; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 50% { opacity: 0.4; } }
+
+    /* Save button */
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .save-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .save-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      z-index: 200;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p id="loadingText">AI 모델을 불러오는 중...</p>
+  </div>
+
+  <header>
+    <h1>AI 얼굴 뷰티 시뮬레이터</h1>
+    <p>사진을 업로드하고 눈썹, 아이라인, 입술 문신 등을 시뮬레이션 해보세요</p>
+  </header>
+
+  <div class="app">
+    <!-- Left: Canvas Area -->
+    <div class="canvas-area">
+      <div class="canvas-toolbar">
+        <button id="btnUpload">📷 사진 변경</button>
+        <button id="btnReset">↩ 초기화</button>
+        <button id="btnCompare">👁 비교</button>
+        <div class="spacer"></div>
+        <button id="btnZoomIn">+</button>
+        <button id="btnZoomOut">−</button>
+      </div>
+      <div class="canvas-wrap">
+        <div id="uploadZone">
+          <div class="icon">📸</div>
+          <p>얼굴 사진을 드래그하거나 클릭하여 업로드</p>
+          <p style="font-size:0.8rem; color:#555;">JPG, PNG, WEBP 지원</p>
+        </div>
+        <div class="canvas-container" id="canvasContainer">
+          <canvas id="photoCanvas"></canvas>
+          <canvas id="overlayCanvas"></canvas>
+          <canvas id="interactionCanvas"></canvas>
+        </div>
+      </div>
+      <div class="status-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">사진을 업로드하세요</span>
+      </div>
+    </div>
+
+    <!-- Right: Control Panel -->
+    <div class="panel">
+
+      <!-- Eyebrow -->
+      <div class="panel-card">
+        <div class="panel-header" data-panel="eyebrow">
+          <h3>✨ 눈썹 문신</h3>
+          <div class="toggle-switch" id="toggleEyebrow"></div>
+        </div>
+        <div class="panel-body" id="panelEyebrow">
+          <div class="control-group">
+            <label class="control-label">스타일</label>
+            <div class="style-grid" id="eyebrowStyles">
+              <button class="style-btn active" data-style="natural">자연형</button>
+              <button class="style-btn" data-style="arch">아치형</button>
+              <button class="style-btn" data-style="straight">일자형</button>
+              <button class="style-btn" data-style="soft-arch">소프트<br/>아치</button>
+              <button class="style-btn" data-style="bold">볼드형</button>
+              <button class="style-btn" data-style="feather">페더형</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">색상</label>
+            <div class="color-row">
+              <input type="color" id="eyebrowColor" value="#4a3728" />
+              <div class="color-presets">
+                <div class="color-dot active" style="background:#4a3728" data-color="#4a3728"></div>
+                <div class="color-dot" style="background:#2c1810" data-color="#2c1810"></div>
+                <div class="color-dot" style="background:#6b4c3b" data-color="#6b4c3b"></div>
+                <div class="color-dot" style="background:#1a1a1a" data-color="#1a1a1a"></div>
+                <div class="color-dot" style="background:#8b6f5e" data-color="#8b6f5e"></div>
+              </div>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">두께</label>
+            <div class="range-row">
+              <input type="range" id="eyebrowThickness" min="1" max="10" value="4" />
+              <span id="eyebrowThicknessVal">4</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">투명도</label>
+            <div class="range-row">
+              <input type="range" id="eyebrowOpacity" min="10" max="100" value="75" />
+              <span id="eyebrowOpacityVal">75%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Eyeliner -->
+      <div class="panel-card">
+        <div class="panel-header" data-panel="eyeliner">
+          <h3>👁 아이라인 문신</h3>
+          <div class="toggle-switch" id="toggleEyeliner"></div>
+        </div>
+        <div class="panel-body" id="panelEyeliner">
+          <div class="control-group">
+            <label class="control-label">스타일</label>
+            <div class="style-grid" id="eyelinerStyles">
+              <button class="style-btn active" data-style="natural">내추럴</button>
+              <button class="style-btn" data-style="cat">캣아이</button>
+              <button class="style-btn" data-style="dramatic">드라마틱</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">색상</label>
+            <div class="color-row">
+              <input type="color" id="eyelinerColor" value="#1a1a1a" />
+              <div class="color-presets">
+                <div class="color-dot active" style="background:#1a1a1a" data-color="#1a1a1a"></div>
+                <div class="color-dot" style="background:#3d2b1f" data-color="#3d2b1f"></div>
+                <div class="color-dot" style="background:#2c1654" data-color="#2c1654"></div>
+              </div>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">두께</label>
+            <div class="range-row">
+              <input type="range" id="eyelinerThickness" min="1" max="6" value="2" />
+              <span id="eyelinerThicknessVal">2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lip -->
+      <div class="panel-card">
+        <div class="panel-header" data-panel="lip">
+          <h3>💋 입술 문신</h3>
+          <div class="toggle-switch" id="toggleLip"></div>
+        </div>
+        <div class="panel-body" id="panelLip">
+          <div class="control-group">
+            <label class="control-label">색상</label>
+            <div class="color-row">
+              <input type="color" id="lipColor" value="#c44569" />
+              <div class="color-presets">
+                <div class="color-dot active" style="background:#c44569" data-color="#c44569"></div>
+                <div class="color-dot" style="background:#e17055" data-color="#e17055"></div>
+                <div class="color-dot" style="background:#d63031" data-color="#d63031"></div>
+                <div class="color-dot" style="background:#a55eea" data-color="#a55eea"></div>
+                <div class="color-dot" style="background:#e8967a" data-color="#e8967a"></div>
+              </div>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">투명도</label>
+            <div class="range-row">
+              <input type="range" id="lipOpacity" min="10" max="80" value="45" />
+              <span id="lipOpacityVal">45%</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">그라데이션</label>
+            <div class="range-row">
+              <input type="range" id="lipGradient" min="0" max="100" value="50" />
+              <span id="lipGradientVal">50%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mole Removal -->
+      <div class="panel-card">
+        <div class="panel-header" data-panel="mole">
+          <h3>🔵 점 제거</h3>
+          <div class="toggle-switch" id="toggleMole"></div>
+        </div>
+        <div class="panel-body" id="panelMole">
+          <p class="mole-info">
+            <strong>점 제거 모드</strong>가 활성화되면 제거할 점 위치를 클릭하세요.<br/>
+            브러시 크기를 조절하여 제거 영역을 설정합니다.
+          </p>
+          <div class="control-group" style="margin-top:10px">
+            <label class="control-label">브러시 크기</label>
+            <div class="range-row">
+              <input type="range" id="moleSize" min="5" max="40" value="15" />
+              <span id="moleSizeVal">15</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">제거 위치</label>
+            <div class="spot-list" id="spotList">
+              <span style="color:var(--muted); font-size:0.78rem;">아직 없음</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hairline -->
+      <div class="panel-card">
+        <div class="panel-header" data-panel="hairline">
+          <h3>💇 헤어라인 보정</h3>
+          <div class="toggle-switch" id="toggleHairline"></div>
+        </div>
+        <div class="panel-body" id="panelHairline">
+          <div class="control-group">
+            <label class="control-label">헤어라인 내리기</label>
+            <div class="range-row">
+              <input type="range" id="hairlineOffset" min="0" max="30" value="0" />
+              <span id="hairlineOffsetVal">0px</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">색상</label>
+            <div class="color-row">
+              <input type="color" id="hairlineColor" value="#2c1810" />
+              <div class="color-presets">
+                <div class="color-dot active" style="background:#2c1810" data-color="#2c1810"></div>
+                <div class="color-dot" style="background:#1a1a1a" data-color="#1a1a1a"></div>
+                <div class="color-dot" style="background:#5a3825" data-color="#5a3825"></div>
+              </div>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label">밀도</label>
+            <div class="range-row">
+              <input type="range" id="hairlineDensity" min="10" max="100" value="60" />
+              <span id="hairlineDensityVal">60%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <button class="save-btn" id="btnSave" disabled>💾 결과 이미지 저장</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="fileInput" accept="image/*" style="display:none" />
+
+<script>
+/* ==============================
+   AI Face Beauty Simulator
+   ============================== */
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+// State
+const state = {
+  image: null,
+  landmarks: null,
+  scale: 1,
+  features: {
+    eyebrow:  { enabled: false, style: 'natural', color: '#4a3728', thickness: 4, opacity: 0.75 },
+    eyeliner: { enabled: false, style: 'natural', color: '#1a1a1a', thickness: 2 },
+    lip:      { enabled: false, color: '#c44569', opacity: 0.45, gradient: 0.5 },
+    mole:     { enabled: false, spots: [], brushSize: 15 },
+    hairline: { enabled: false, offset: 0, color: '#2c1810', density: 0.6 },
+  }
+};
+
+// DOM refs
+const photoCanvas = $('#photoCanvas');
+const overlayCanvas = $('#overlayCanvas');
+const interactionCanvas = $('#interactionCanvas');
+const pCtx = photoCanvas.getContext('2d');
+const oCtx = overlayCanvas.getContext('2d');
+const iCtx = interactionCanvas.getContext('2d');
+
+// ---- Model Loading ----
+async function loadModels() {
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    ]);
+    setStatus('ready', 'AI 모델 로드 완료');
+    $('#loadingOverlay').classList.add('hidden');
+  } catch (e) {
+    console.error('Model load error:', e);
+    $('#loadingText').textContent = '모델 로드 실패. 페이지를 새로고침하세요.';
+  }
+}
+
+// ---- File Upload ----
+const uploadZone = $('#uploadZone');
+const fileInput = $('#fileInput');
+const canvasContainer = $('#canvasContainer');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+$('#btnUpload').addEventListener('click', () => fileInput.click());
+
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) { showToast('이미지 파일만 지원됩니다.'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => loadImage(img);
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function loadImage(img) {
+  // Limit canvas size
+  const maxW = 800, maxH = 800;
+  let w = img.width, h = img.height;
+  if (w > maxW) { h *= maxW / w; w = maxW; }
+  if (h > maxH) { w *= maxH / h; h = maxH; }
+  w = Math.round(w); h = Math.round(h);
+
+  [photoCanvas, overlayCanvas, interactionCanvas].forEach(c => { c.width = w; c.height = h; });
+
+  pCtx.drawImage(img, 0, 0, w, h);
+  state.image = img;
+  state.scale = 1;
+
+  uploadZone.classList.add('hidden');
+  canvasContainer.classList.add('visible');
+  $('#btnSave').disabled = false;
+
+  // Detect face
+  setStatus('processing', '얼굴을 분석하는 중...');
+  try {
+    const detections = await faceapi.detectSingleFace(
+      photoCanvas,
+      new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 })
+    ).withFaceLandmarks();
+
+    if (detections) {
+      state.landmarks = detections.landmarks;
+      setStatus('ready', '얼굴 감지 완료 — 기능을 활성화하세요');
+      showToast('얼굴이 감지되었습니다!');
+    } else {
+      setStatus('ready', '얼굴을 찾지 못했습니다. 다른 사진을 시도하세요.');
+      showToast('얼굴을 감지하지 못했습니다.');
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('ready', '분석 오류 발생');
+  }
+}
+
+// ---- Drawing Functions ----
+function redraw() {
+  oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  if (!state.landmarks) return;
+
+  const lm = state.landmarks;
+  const pts = lm.positions;
+
+  if (state.features.eyebrow.enabled) drawEyebrows(pts);
+  if (state.features.eyeliner.enabled) drawEyeliner(pts);
+  if (state.features.lip.enabled) drawLips(pts);
+  if (state.features.mole.enabled) drawMoleRemoval();
+  if (state.features.hairline.enabled) drawHairline(pts);
+}
+
+// -- Eyebrow Drawing --
+function drawEyebrows(pts) {
+  const f = state.features.eyebrow;
+  oCtx.save();
+  oCtx.globalAlpha = f.opacity;
+  oCtx.strokeStyle = f.color;
+  oCtx.fillStyle = f.color;
+  oCtx.lineWidth = f.thickness;
+  oCtx.lineCap = 'round';
+  oCtx.lineJoin = 'round';
+
+  // Left eyebrow: points 17-21, Right eyebrow: points 22-26
+  const leftBrow = [pts[17], pts[18], pts[19], pts[20], pts[21]];
+  const rightBrow = [pts[22], pts[23], pts[24], pts[25], pts[26]];
+
+  drawSingleEyebrow(leftBrow, f.style, f.thickness);
+  drawSingleEyebrow(rightBrow, f.style, f.thickness);
+
+  oCtx.restore();
+}
+
+function drawSingleEyebrow(points, style, thickness) {
+  if (points.length < 2) return;
+
+  const offY = -thickness * 0.5;
+  let topOffset = 0, archMod = 0;
+
+  switch (style) {
+    case 'arch':     topOffset = -thickness * 1.2; archMod = -thickness * 2; break;
+    case 'straight': topOffset = -thickness * 0.3; archMod = 0; break;
+    case 'soft-arch':topOffset = -thickness * 0.8; archMod = -thickness * 1; break;
+    case 'bold':     topOffset = -thickness * 1.5; archMod = -thickness * 1.2; break;
+    case 'feather':  topOffset = -thickness * 0.6; archMod = -thickness * 0.8; break;
+    default:         topOffset = -thickness * 0.7; archMod = -thickness * 0.8; break;
+  }
+
+  oCtx.beginPath();
+
+  // Bottom edge
+  oCtx.moveTo(points[0].x, points[0].y + offY);
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cpx = (prev.x + curr.x) / 2;
+    const cpy = (prev.y + curr.y) / 2 + offY;
+    oCtx.quadraticCurveTo(prev.x, prev.y + offY, cpx, cpy);
+  }
+  oCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y + offY);
+
+  // Top edge (reverse)
+  for (let i = points.length - 1; i >= 0; i--) {
+    const t = i / (points.length - 1);
+    const arch = Math.sin(t * Math.PI) * archMod;
+    const yOff = offY + topOffset + arch;
+    if (i === points.length - 1) {
+      oCtx.lineTo(points[i].x, points[i].y + yOff);
+    } else {
+      const next = points[i + 1];
+      const cpx = (points[i].x + next.x) / 2;
+      const cpy = (points[i].y + next.y) / 2 + yOff + (topOffset + arch) * 0.3;
+      oCtx.quadraticCurveTo(next.x, next.y + offY + topOffset + Math.sin((i + 1) / (points.length - 1) * Math.PI) * archMod, cpx, cpy);
+    }
+  }
+
+  oCtx.closePath();
+  oCtx.fill();
+
+  // Feather effect
+  if (style === 'feather') {
+    oCtx.save();
+    oCtx.globalAlpha *= 0.4;
+    for (let i = 0; i < points.length - 1; i++) {
+      for (let j = 0; j < 3; j++) {
+        const t = Math.random();
+        const x = points[i].x + (points[i + 1].x - points[i].x) * t;
+        const y = points[i].y + (points[i + 1].y - points[i].y) * t + offY + topOffset * 0.5;
+        const angle = Math.atan2(points[i + 1].y - points[i].y, points[i + 1].x - points[i].x) + (Math.random() - 0.5) * 0.8;
+        const len = thickness * (1 + Math.random());
+        oCtx.beginPath();
+        oCtx.moveTo(x, y);
+        oCtx.lineTo(x + Math.cos(angle) * len, y + Math.sin(angle) * len - thickness * 0.5);
+        oCtx.lineWidth = 1;
+        oCtx.stroke();
+      }
+    }
+    oCtx.restore();
+  }
+}
+
+// -- Eyeliner Drawing --
+function drawEyeliner(pts) {
+  const f = state.features.eyeliner;
+  oCtx.save();
+  oCtx.strokeStyle = f.color;
+  oCtx.lineWidth = f.thickness;
+  oCtx.lineCap = 'round';
+  oCtx.lineJoin = 'round';
+  oCtx.globalAlpha = 0.85;
+
+  // Left eye: 36-41, Right eye: 42-47
+  drawSingleEyeliner([pts[36], pts[37], pts[38], pts[39], pts[40], pts[41]], f.style, f.thickness, false);
+  drawSingleEyeliner([pts[42], pts[43], pts[44], pts[45], pts[46], pts[47]], f.style, f.thickness, true);
+
+  oCtx.restore();
+}
+
+function drawSingleEyeliner(eyePts, style, thickness, isRight) {
+  // Upper lid line
+  const upper = isRight ? [eyePts[0], eyePts[1], eyePts[2], eyePts[3]] : [eyePts[0], eyePts[1], eyePts[2], eyePts[3]];
+
+  oCtx.beginPath();
+  oCtx.moveTo(upper[0].x, upper[0].y);
+  for (let i = 1; i < upper.length; i++) {
+    const prev = upper[i - 1];
+    const curr = upper[i];
+    oCtx.quadraticCurveTo(prev.x, prev.y - thickness * 0.3, (prev.x + curr.x) / 2, (prev.y + curr.y) / 2 - thickness * 0.3);
+  }
+  oCtx.lineTo(upper[upper.length - 1].x, upper[upper.length - 1].y);
+
+  // Wing extension for cat-eye and dramatic
+  if (style === 'cat' || style === 'dramatic') {
+    const lastPt = upper[upper.length - 1];
+    const wingLen = style === 'dramatic' ? thickness * 6 : thickness * 4;
+    const wingAngle = isRight ? -0.5 : -0.5;
+    const dx = isRight ? wingLen : -wingLen;
+    oCtx.lineTo(lastPt.x + dx * 0.7, lastPt.y + wingAngle * wingLen * 0.5);
+  }
+
+  oCtx.stroke();
+
+  // Thicken for dramatic
+  if (style === 'dramatic') {
+    oCtx.lineWidth = thickness * 1.8;
+    oCtx.globalAlpha = 0.5;
+    oCtx.beginPath();
+    oCtx.moveTo(upper[0].x, upper[0].y);
+    for (let i = 1; i < upper.length; i++) {
+      oCtx.lineTo(upper[i].x, upper[i].y - thickness * 0.2);
+    }
+    oCtx.stroke();
+  }
+}
+
+// -- Lip Drawing --
+function drawLips(pts) {
+  const f = state.features.lip;
+  oCtx.save();
+
+  // Outer lip: 48-59, Inner lip: 60-67
+  const outerLip = [];
+  for (let i = 48; i <= 59; i++) outerLip.push(pts[i]);
+  const innerLip = [];
+  for (let i = 60; i <= 67; i++) innerLip.push(pts[i]);
+
+  // Calculate center for gradient
+  let cx = 0, cy = 0;
+  outerLip.forEach(p => { cx += p.x; cy += p.y; });
+  cx /= outerLip.length; cy /= outerLip.length;
+
+  // Gradient
+  const gradSize = 40 + f.gradient * 60;
+  const grad = oCtx.createRadialGradient(cx, cy, 0, cx, cy, gradSize);
+
+  const rgb = hexToRgb(f.color);
+  grad.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${f.opacity})`);
+  grad.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},${f.opacity * 0.3})`);
+
+  // Draw outer lip fill
+  oCtx.fillStyle = f.gradient > 0.1 ? grad : `rgba(${rgb.r},${rgb.g},${rgb.b},${f.opacity})`;
+
+  oCtx.beginPath();
+  oCtx.moveTo(outerLip[0].x, outerLip[0].y);
+  for (let i = 1; i < outerLip.length; i++) {
+    const prev = outerLip[i - 1];
+    const curr = outerLip[i];
+    oCtx.quadraticCurveTo(prev.x, prev.y, (prev.x + curr.x) / 2, (prev.y + curr.y) / 2);
+  }
+  oCtx.quadraticCurveTo(outerLip[outerLip.length - 1].x, outerLip[outerLip.length - 1].y, outerLip[0].x, outerLip[0].y);
+  oCtx.closePath();
+  oCtx.fill();
+
+  oCtx.restore();
+}
+
+// -- Mole Removal --
+function drawMoleRemoval() {
+  const spots = state.features.mole.spots;
+  if (!spots.length) return;
+
+  spots.forEach(spot => {
+    // Sample surrounding pixels and paint over
+    const r = spot.size;
+    const x = spot.x, y = spot.y;
+
+    // Get surrounding pixels from photo canvas
+    const samplePoints = [
+      { sx: x - r * 1.5, sy: y },
+      { sx: x + r * 1.5, sy: y },
+      { sx: x, sy: y - r * 1.5 },
+      { sx: x, sy: y + r * 1.5 },
+    ];
+
+    oCtx.save();
+    oCtx.beginPath();
+    oCtx.arc(x, y, r, 0, Math.PI * 2);
+    oCtx.clip();
+
+    // Blend surrounding area
+    samplePoints.forEach(sp => {
+      try {
+        const imgData = pCtx.getImageData(Math.max(0, sp.sx - r / 2), Math.max(0, sp.sy - r / 2), r, r);
+        oCtx.putImageData(imgData, x - r / 2, y - r / 2);
+      } catch (e) {}
+    });
+
+    // Soft blur effect overlay
+    oCtx.globalAlpha = 0.6;
+    oCtx.filter = `blur(${r * 0.4}px)`;
+    try {
+      oCtx.drawImage(photoCanvas, Math.max(0, x - r * 2), Math.max(0, y - r * 2), r * 4, r * 4, x - r * 2, y - r * 2, r * 4, r * 4);
+    } catch (e) {}
+    oCtx.filter = 'none';
+
+    oCtx.restore();
+  });
+}
+
+// -- Hairline Drawing --
+function drawHairline(pts) {
+  const f = state.features.hairline;
+  if (f.offset <= 0) return;
+
+  oCtx.save();
+
+  // Use forehead area from landmarks
+  // Forehead is above eyebrows (points 17-26)
+  const browLeft = pts[17];
+  const browRight = pts[26];
+  const browCenter = pts[19];
+
+  const startX = browLeft.x - 10;
+  const endX = browRight.x + 10;
+  const baseY = Math.min(browLeft.y, browCenter.y, browRight.y) - 5;
+
+  const rgb = hexToRgb(f.color);
+  oCtx.fillStyle = f.color;
+
+  // Draw hair-like strokes
+  const density = Math.floor(f.density * 100);
+  const offset = f.offset;
+
+  for (let i = 0; i < density; i++) {
+    const t = i / density;
+    const x = startX + (endX - startX) * t;
+    const yBase = baseY - offset + Math.sin(t * Math.PI) * (offset * 0.3);
+
+    for (let j = 0; j < 3; j++) {
+      const hairX = x + (Math.random() - 0.5) * 4;
+      const hairY = yBase + Math.random() * offset;
+      const hairLen = 3 + Math.random() * (offset * 0.5);
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+
+      oCtx.globalAlpha = 0.3 + Math.random() * 0.4;
+      oCtx.beginPath();
+      oCtx.moveTo(hairX, hairY);
+      oCtx.lineTo(hairX + Math.cos(angle) * hairLen, hairY + Math.sin(angle) * hairLen);
+      oCtx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${0.4 + Math.random() * 0.5})`;
+      oCtx.lineWidth = 0.5 + Math.random() * 1;
+      oCtx.stroke();
+    }
+  }
+
+  oCtx.restore();
+}
+
+// ---- Interaction (Mole clicks) ----
+interactionCanvas.addEventListener('click', (e) => {
+  if (!state.features.mole.enabled || !state.landmarks) return;
+
+  const rect = interactionCanvas.getBoundingClientRect();
+  const scaleX = interactionCanvas.width / rect.width;
+  const scaleY = interactionCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  state.features.mole.spots.push({ x, y, size: state.features.mole.brushSize });
+  updateSpotList();
+  redraw();
+  showToast('점 제거 위치가 추가되었습니다.');
+});
+
+// Show mole cursor
+interactionCanvas.addEventListener('mousemove', (e) => {
+  if (!state.features.mole.enabled) {
+    iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
+    return;
+  }
+  const rect = interactionCanvas.getBoundingClientRect();
+  const scaleX = interactionCanvas.width / rect.width;
+  const scaleY = interactionCanvas.height / rect.height;
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
+  iCtx.beginPath();
+  iCtx.arc(x, y, state.features.mole.brushSize, 0, Math.PI * 2);
+  iCtx.strokeStyle = 'rgba(250,113,205,0.7)';
+  iCtx.lineWidth = 2;
+  iCtx.setLineDash([4, 4]);
+  iCtx.stroke();
+  iCtx.setLineDash([]);
+});
+
+function updateSpotList() {
+  const list = $('#spotList');
+  const spots = state.features.mole.spots;
+  if (!spots.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:0.78rem;">아직 없음</span>';
+    return;
+  }
+  list.innerHTML = spots.map((s, i) =>
+    `<span class="spot-tag" data-idx="${i}">점 ${i + 1} ✕</span>`
+  ).join('');
+
+  list.querySelectorAll('.spot-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      spots.splice(parseInt(tag.dataset.idx), 1);
+      updateSpotList();
+      redraw();
+    });
+  });
+}
+
+// ---- Panel Toggles ----
+$$('.panel-header').forEach(header => {
+  const panelKey = header.dataset.panel;
+  const toggle = header.querySelector('.toggle-switch');
+  const body = $(`#panel${capitalize(panelKey)}`);
+
+  header.addEventListener('click', (e) => {
+    if (e.target.closest('.toggle-switch')) {
+      // Toggle feature
+      state.features[panelKey].enabled = !state.features[panelKey].enabled;
+      toggle.classList.toggle('active', state.features[panelKey].enabled);
+      body.classList.toggle('open', state.features[panelKey].enabled);
+      redraw();
+      return;
+    }
+    // Toggle panel visibility
+    if (state.features[panelKey].enabled) {
+      body.classList.toggle('open');
+    }
+  });
+});
+
+// ---- Control Bindings ----
+
+// Eyebrow styles
+$$('#eyebrowStyles .style-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('#eyebrowStyles .style-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.features.eyebrow.style = btn.dataset.style;
+    redraw();
+  });
+});
+
+// Eyeliner styles
+$$('#eyelinerStyles .style-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('#eyelinerStyles .style-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.features.eyeliner.style = btn.dataset.style;
+    redraw();
+  });
+});
+
+// Color pickers + presets
+function bindColorControl(inputId, feature, prop, presetParent) {
+  const input = $(`#${inputId}`);
+  input.addEventListener('input', () => {
+    state.features[feature][prop] = input.value;
+    presetParent.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    redraw();
+  });
+
+  presetParent.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      presetParent.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      const c = dot.dataset.color;
+      input.value = c;
+      state.features[feature][prop] = c;
+      redraw();
+    });
+  });
+}
+
+bindColorControl('eyebrowColor', 'eyebrow', 'color', $('#eyebrowColor').closest('.color-row'));
+bindColorControl('eyelinerColor', 'eyeliner', 'color', $('#eyelinerColor').closest('.color-row'));
+bindColorControl('lipColor', 'lip', 'color', $('#lipColor').closest('.color-row'));
+bindColorControl('hairlineColor', 'hairline', 'color', $('#hairlineColor').closest('.color-row'));
+
+// Range sliders
+function bindRange(inputId, feature, prop, displayId, suffix, transform) {
+  const input = $(`#${inputId}`);
+  const display = $(`#${displayId}`);
+  input.addEventListener('input', () => {
+    const raw = parseFloat(input.value);
+    state.features[feature][prop] = transform ? transform(raw) : raw;
+    display.textContent = suffix ? raw + suffix : raw;
+    redraw();
+  });
+}
+
+bindRange('eyebrowThickness', 'eyebrow', 'thickness', 'eyebrowThicknessVal');
+bindRange('eyebrowOpacity', 'eyebrow', 'opacity', 'eyebrowOpacityVal', '%', v => v / 100);
+bindRange('eyelinerThickness', 'eyeliner', 'thickness', 'eyelinerThicknessVal');
+bindRange('lipOpacity', 'lip', 'opacity', 'lipOpacityVal', '%', v => v / 100);
+bindRange('lipGradient', 'lip', 'gradient', 'lipGradientVal', '%', v => v / 100);
+bindRange('moleSize', 'mole', 'brushSize', 'moleSizeVal');
+bindRange('hairlineOffset', 'hairline', 'offset', 'hairlineOffsetVal', 'px');
+bindRange('hairlineDensity', 'hairline', 'density', 'hairlineDensityVal', '%', v => v / 100);
+
+// ---- Toolbar Actions ----
+$('#btnReset').addEventListener('click', () => {
+  Object.keys(state.features).forEach(k => {
+    state.features[k].enabled = false;
+    if (k === 'mole') state.features[k].spots = [];
+  });
+  $$('.toggle-switch').forEach(t => t.classList.remove('active'));
+  $$('.panel-body').forEach(p => p.classList.remove('open'));
+  updateSpotList();
+  redraw();
+  showToast('초기화 되었습니다.');
+});
+
+// Compare (before/after)
+let comparing = false;
+$('#btnCompare').addEventListener('click', () => {
+  comparing = !comparing;
+  overlayCanvas.style.display = comparing ? 'none' : 'block';
+  $('#btnCompare').textContent = comparing ? '👁 원본 보는 중' : '👁 비교';
+});
+
+// Save
+$('#btnSave').addEventListener('click', () => {
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = photoCanvas.width;
+  tempCanvas.height = photoCanvas.height;
+  const tCtx = tempCanvas.getContext('2d');
+  tCtx.drawImage(photoCanvas, 0, 0);
+  tCtx.drawImage(overlayCanvas, 0, 0);
+
+  const link = document.createElement('a');
+  link.download = 'beauty-result.png';
+  link.href = tempCanvas.toDataURL('image/png');
+  link.click();
+  showToast('이미지가 저장되었습니다!');
+});
+
+// ---- Helpers ----
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function setStatus(type, text) {
+  const dot = $('#statusDot');
+  dot.className = 'status-dot ' + type;
+  $('#statusText').textContent = text;
+}
+
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ---- Init ----
+window.addEventListener('DOMContentLoaded', () => {
+  if (typeof faceapi !== 'undefined') {
+    loadModels();
+  } else {
+    // face-api.js not loaded yet, wait
+    const check = setInterval(() => {
+      if (typeof faceapi !== 'undefined') {
+        clearInterval(check);
+        loadModels();
+      }
+    }, 200);
+    setTimeout(() => {
+      clearInterval(check);
+      if (typeof faceapi === 'undefined') {
+        $('#loadingText').textContent = 'face-api.js 로드 실패. 새로고침하세요.';
+      }
+    }, 15000);
+  }
+});
+</script>
+</body>
+</html>
