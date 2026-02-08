@@ -453,6 +453,134 @@
     }
 
     .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Camera UI */
+    .upload-options {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .upload-opt-btn {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.88rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .upload-opt-btn:hover {
+      border-color: var(--accent);
+      background: rgba(196,113,245,0.1);
+    }
+
+    .camera-container {
+      display: none;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .camera-container.visible {
+      display: flex;
+    }
+
+    #cameraVideo {
+      max-width: 100%;
+      max-height: 55vh;
+      border-radius: 10px;
+      background: #000;
+      transform: scaleX(-1);
+    }
+
+    .camera-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .shutter-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 4px solid var(--accent);
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .shutter-btn::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+      transition: all 0.15s;
+    }
+
+    .shutter-btn:hover::after { background: var(--accent2); }
+    .shutter-btn:active::after { transform: scale(0.85); }
+
+    .camera-close-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .camera-close-btn:hover {
+      background: rgba(255,71,87,0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .camera-switch-btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .camera-switch-btn:hover {
+      border-color: var(--accent);
+      background: rgba(196,113,245,0.1);
+    }
+
+    /* Flash effect */
+    .flash-overlay {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: 8px;
+      z-index: 5;
+      transition: opacity 0.1s;
+    }
+
+    .flash-overlay.flash {
+      opacity: 0.8;
+      transition: opacity 0s;
+    }
   </style>
 </head>
 <body>
@@ -471,6 +599,7 @@
     <div class="canvas-area">
       <div class="canvas-toolbar">
         <button id="btnUpload">📷 사진 변경</button>
+        <button id="btnCamera">📹 카메라</button>
         <button id="btnDelete" class="danger">🗑 사진 삭제</button>
         <button id="btnReset">↩ 초기화</button>
         <button id="btnCompare">👁 비교</button>
@@ -480,12 +609,25 @@
         <div id="uploadZone">
           <div class="icon">📸</div>
           <p>얼굴 사진을 드래그하거나 클릭하여 업로드</p>
-          <p style="font-size:0.8rem; color:#555;">JPG, PNG, WEBP 지원</p>
+          <div class="upload-options">
+            <button class="upload-opt-btn" id="btnUploadFile">📁 파일 선택</button>
+            <button class="upload-opt-btn" id="btnOpenCamera">📹 카메라 촬영</button>
+          </div>
+          <p style="font-size:0.8rem; color:#555; margin-top:8px;">JPG, PNG, WEBP 지원</p>
+        </div>
+        <div class="camera-container" id="cameraContainer">
+          <video id="cameraVideo" autoplay playsinline></video>
+          <div class="camera-controls">
+            <button class="camera-switch-btn" id="btnSwitchCam">🔄 전환</button>
+            <button class="shutter-btn" id="btnShutter" title="촬영"></button>
+            <button class="camera-close-btn" id="btnCloseCamera">✕ 닫기</button>
+          </div>
         </div>
         <div class="canvas-container" id="canvasContainer">
           <canvas id="photoCanvas"></canvas>
           <canvas id="overlayCanvas"></canvas>
           <canvas id="interactionCanvas"></canvas>
+          <div class="flash-overlay" id="flashOverlay"></div>
         </div>
       </div>
       <div class="status-bar">
@@ -769,8 +911,9 @@ const uploadZone = $('#uploadZone');
 const fileInput = $('#fileInput');
 const canvasContainer = $('#canvasContainer');
 
-uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('click', (e) => { if (!e.target.closest('.upload-opt-btn')) fileInput.click(); });
 $('#btnUpload').addEventListener('click', () => fileInput.click());
+$('#btnUploadFile').addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
 
 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
@@ -1508,6 +1651,91 @@ $('#btnSave').addEventListener('click', () => {
   link.click();
   showToast('이미지가 저장되었습니다!');
 });
+
+// ---- Camera ----
+const cameraContainer = $('#cameraContainer');
+const cameraVideo = $('#cameraVideo');
+let cameraStream = null;
+let facingMode = 'user'; // 'user' = front, 'environment' = back
+
+async function openCamera() {
+  try {
+    if (cameraStream) stopCamera();
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false
+    });
+    cameraVideo.srcObject = cameraStream;
+    uploadZone.classList.add('hidden');
+    canvasContainer.classList.remove('visible');
+    cameraContainer.classList.add('visible');
+    setStatus('ready', '카메라 준비 완료 — 촬영 버튼을 누르세요');
+  } catch (err) {
+    console.error('Camera error:', err);
+    showToast('카메라를 열 수 없습니다. 권한을 확인하세요.');
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+  cameraVideo.srcObject = null;
+  cameraContainer.classList.remove('visible');
+}
+
+function capturePhoto() {
+  if (!cameraStream) return;
+  const vw = cameraVideo.videoWidth;
+  const vh = cameraVideo.videoHeight;
+  if (!vw || !vh) { showToast('카메라가 아직 준비되지 않았습니다.'); return; }
+
+  // Flash effect
+  const flash = $('#flashOverlay');
+  flash.classList.add('flash');
+  setTimeout(() => flash.classList.remove('flash'), 150);
+
+  // Draw video frame to a temp canvas (mirror for front camera)
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = vw;
+  tempCanvas.height = vh;
+  const tCtx = tempCanvas.getContext('2d');
+  if (facingMode === 'user') {
+    tCtx.translate(vw, 0);
+    tCtx.scale(-1, 1);
+  }
+  tCtx.drawImage(cameraVideo, 0, 0, vw, vh);
+
+  // Convert to image
+  const dataUrl = tempCanvas.toDataURL('image/png');
+  const img = new Image();
+  img.onload = () => {
+    stopCamera();
+    loadImage(img);
+  };
+  img.src = dataUrl;
+}
+
+$('#btnOpenCamera').addEventListener('click', (e) => { e.stopPropagation(); openCamera(); });
+$('#btnCamera').addEventListener('click', () => openCamera());
+$('#btnShutter').addEventListener('click', capturePhoto);
+
+$('#btnCloseCamera').addEventListener('click', () => {
+  stopCamera();
+  uploadZone.classList.remove('hidden');
+  setStatus('ready', '사진을 업로드하세요');
+});
+
+$('#btnSwitchCam').addEventListener('click', async () => {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  cameraVideo.style.transform = facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+  await openCamera();
+});
+
+// Also stop camera on delete
+const origDeleteHandler = $('#btnDelete').onclick;
+$('#btnDelete').addEventListener('click', () => { stopCamera(); });
 
 // ---- Init ----
 window.addEventListener('DOMContentLoaded', () => {
