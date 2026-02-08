@@ -16,6 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
   <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+  <script>var Module = { onRuntimeInitialized: function() { window.opencvReady = true; console.log('OpenCV.js ready'); } };</script>
+  <script async src="https://docs.opencv.org/4.9.0/opencv.js"></script>
   <style>
     :root {
       --bg: #0c0b1a;
@@ -1850,53 +1852,69 @@ function drawLips(pts) {
 
 // -- Mole Removal (applies directly to photoCanvas) --
 function removeMoleAt(x, y, brushSize) {
-  const r = brushSize;
-  const cw = photoCanvas.width, ch = photoCanvas.height;
-  x = Math.round(x); y = Math.round(y);
+  const r = Math.round(brushSize);
+  x = Math.round(x);
+  y = Math.round(y);
 
-  // Step 1: Sample average skin color from surrounding ring
-  const sampleR = r * 1.6;
-  let tR = 0, tG = 0, tB = 0, cnt = 0;
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    const sx = Math.round(x + Math.cos(a) * sampleR);
-    const sy = Math.round(y + Math.sin(a) * sampleR);
-    if (sx >= 0 && sx < cw && sy >= 0 && sy < ch) {
-      try {
-        const p = pCtx.getImageData(sx, sy, 1, 1).data;
-        tR += p[0]; tG += p[1]; tB += p[2]; cnt++;
-      } catch(e) { /* skip */ }
+  // OpenCV.js inpainting (best quality)
+  if (window.opencvReady && typeof cv !== 'undefined') {
+    try {
+      const src = cv.imread(photoCanvas);
+      const src3 = new cv.Mat();
+      cv.cvtColor(src, src3, cv.COLOR_RGBA2RGB);
+
+      // Create mask: white circle = area to inpaint
+      const mask = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
+      cv.circle(mask, new cv.Point(x, y), r, new cv.Scalar(255), -1);
+
+      // Telea inpainting algorithm
+      const dst = new cv.Mat();
+      cv.inpaint(src3, mask, dst, r * 1.5, cv.INPAINT_TELEA);
+
+      cv.imshow(photoCanvas, dst);
+
+      src.delete(); src3.delete(); mask.delete(); dst.delete();
+      return;
+    } catch(e) {
+      console.error('OpenCV inpaint error:', e);
     }
   }
-  if (cnt === 0) return;
-  const avgR = Math.round(tR / cnt), avgG = Math.round(tG / cnt), avgB = Math.round(tB / cnt);
 
-  // Step 2: Fill the spot with averaged surrounding color (soft radial gradient)
+  // Fallback: shift-blend from surrounding areas
+  const cw = photoCanvas.width, ch = photoCanvas.height;
+  for (let pass = 0; pass < 5; pass++) {
+    const tmp = document.createElement('canvas');
+    tmp.width = cw; tmp.height = ch;
+    tmp.getContext('2d').drawImage(photoCanvas, 0, 0);
+
+    const passR = r * (1 - pass * 0.1);
+    const shift = r * (0.4 - pass * 0.05);
+
+    pCtx.save();
+    pCtx.beginPath();
+    pCtx.arc(x, y, passR, 0, Math.PI * 2);
+    pCtx.clip();
+    pCtx.globalAlpha = 0.25;
+    pCtx.drawImage(tmp, shift, 0);
+    pCtx.drawImage(tmp, -shift, 0);
+    pCtx.drawImage(tmp, 0, shift);
+    pCtx.drawImage(tmp, 0, -shift);
+    pCtx.restore();
+  }
+
+  // Final smooth blur
+  const blur = document.createElement('canvas');
+  blur.width = cw; blur.height = ch;
+  const bCtx = blur.getContext('2d');
+  bCtx.filter = `blur(${Math.max(2, r * 0.4)}px)`;
+  bCtx.drawImage(photoCanvas, 0, 0);
+  bCtx.filter = 'none';
   pCtx.save();
-  const grad = pCtx.createRadialGradient(x, y, 0, x, y, r);
-  grad.addColorStop(0, `rgba(${avgR},${avgG},${avgB},1)`);
-  grad.addColorStop(0.6, `rgba(${avgR},${avgG},${avgB},0.9)`);
-  grad.addColorStop(1, `rgba(${avgR},${avgG},${avgB},0)`);
-  pCtx.fillStyle = grad;
   pCtx.beginPath();
-  pCtx.arc(x, y, r, 0, Math.PI * 2);
-  pCtx.fill();
-  pCtx.restore();
-
-  // Step 3: Blur-blend for smooth transition with surrounding skin
-  const tmpCanvas = document.createElement('canvas');
-  tmpCanvas.width = cw; tmpCanvas.height = ch;
-  const tmpCtx = tmpCanvas.getContext('2d');
-  tmpCtx.filter = `blur(${Math.max(3, Math.round(r * 0.5))}px)`;
-  tmpCtx.drawImage(photoCanvas, 0, 0);
-  tmpCtx.filter = 'none';
-
-  pCtx.save();
-  pCtx.beginPath();
-  pCtx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+  pCtx.arc(x, y, r * 0.7, 0, Math.PI * 2);
   pCtx.clip();
-  pCtx.globalAlpha = 0.55;
-  pCtx.drawImage(tmpCanvas, 0, 0);
+  pCtx.globalAlpha = 0.4;
+  pCtx.drawImage(blur, 0, 0);
   pCtx.restore();
 }
 
