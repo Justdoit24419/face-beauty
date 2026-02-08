@@ -774,8 +774,8 @@
         </div>
         <div class="panel-body" id="panelMole">
           <p class="mole-info">
-            <strong>점 제거 모드</strong>가 활성화되면 제거할 점 위치를 클릭하세요.<br/>
-            브러시 크기를 조절하여 제거 영역을 설정합니다.
+            <strong>점 제거 모드</strong>가 활성화되면 제거할 점을 클릭하세요.<br/>
+            클릭 즉시 해당 영역이 자연스럽게 제거됩니다.
           </p>
           <div class="control-group" style="margin-top:10px">
             <label class="control-label">브러시 크기</label>
@@ -784,12 +784,7 @@
               <span id="moleSizeVal">15</span>
             </div>
           </div>
-          <div class="control-group">
-            <label class="control-label">제거 위치</label>
-            <div class="spot-list" id="spotList">
-              <span style="color:var(--muted); font-size:0.78rem;">아직 없음</span>
-            </div>
-          </div>
+          <div class="drag-hint">점 제거는 원본 이미지에 직접 적용됩니다 (되돌리려면 사진을 다시 업로드)</div>
         </div>
       </div>
 
@@ -843,10 +838,10 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 // ---- Default feature configs (for reset) ----
 const DEFAULTS = {
-  eyebrow:  { enabled: false, style: 'natural', color: '#4a3728', thickness: 4, opacity: 0.75, offsetX: 0, offsetY: 0 },
+  eyebrow:  { enabled: false, style: 'natural', color: '#4a3728', thickness: 4, opacity: 0.75, leftOffsetX: 0, leftOffsetY: 0, rightOffsetX: 0, rightOffsetY: 0 },
   eyeliner: { enabled: false, style: 'natural', color: '#1a1a1a', thickness: 2, offsetX: 0, offsetY: 0 },
   lip:      { enabled: false, color: '#c44569', opacity: 0.45, gradient: 0.5, offsetX: 0, offsetY: 0 },
-  mole:     { enabled: false, spots: [], brushSize: 15 },
+  mole:     { enabled: false, brushSize: 15 },
   hairline: { enabled: false, offset: 0, color: '#2c1810', density: 0.6, offsetX: 0, offsetY: 0 },
 };
 
@@ -858,7 +853,7 @@ const state = {
     eyebrow:  { ...DEFAULTS.eyebrow },
     eyeliner: { ...DEFAULTS.eyeliner },
     lip:      { ...DEFAULTS.lip },
-    mole:     { ...DEFAULTS.mole, spots: [] },
+    mole:     { ...DEFAULTS.mole },
     hairline: { ...DEFAULTS.hairline },
   }
 };
@@ -979,14 +974,12 @@ function redraw() {
   if (state.features.eyebrow.enabled) drawEyebrows(pts);
   if (state.features.eyeliner.enabled) drawEyeliner(pts);
   if (state.features.lip.enabled) drawLips(pts);
-  if (state.features.mole.enabled) drawMoleRemoval();
   if (state.features.hairline.enabled) drawHairline(pts);
 }
 
 // -- Eyebrow --
 function drawEyebrows(pts) {
   const f = state.features.eyebrow;
-  const ox = f.offsetX, oy = f.offsetY;
   oCtx.save();
   oCtx.globalAlpha = f.opacity;
   oCtx.fillStyle = f.color;
@@ -994,8 +987,8 @@ function drawEyebrows(pts) {
   oCtx.lineCap = 'round';
   oCtx.lineJoin = 'round';
 
-  const leftBrow = [17,18,19,20,21].map(i => ({ x: pts[i].x + ox, y: pts[i].y + oy }));
-  const rightBrow = [22,23,24,25,26].map(i => ({ x: pts[i].x + ox, y: pts[i].y + oy }));
+  const leftBrow = [17,18,19,20,21].map(i => ({ x: pts[i].x + f.leftOffsetX, y: pts[i].y + f.leftOffsetY }));
+  const rightBrow = [22,23,24,25,26].map(i => ({ x: pts[i].x + f.rightOffsetX, y: pts[i].y + f.rightOffsetY }));
 
   drawSingleEyebrow(leftBrow, f.style, f.thickness);
   drawSingleEyebrow(rightBrow, f.style, f.thickness);
@@ -1218,38 +1211,58 @@ function drawLips(pts) {
   oCtx.restore();
 }
 
-// -- Mole Removal --
-function drawMoleRemoval() {
-  const spots = state.features.mole.spots;
-  if (!spots.length) return;
+// -- Mole Removal (applies directly to photoCanvas) --
+function removeMoleAt(x, y, brushSize) {
+  const r = brushSize;
+  const cw = photoCanvas.width, ch = photoCanvas.height;
 
-  spots.forEach(spot => {
-    const r = spot.size, x = spot.x, y = spot.y;
-    oCtx.save();
-    oCtx.beginPath();
-    oCtx.arc(x, y, r, 0, Math.PI * 2);
-    oCtx.clip();
+  // Create temp canvas for smooth blending
+  const tmp = document.createElement('canvas');
+  tmp.width = cw; tmp.height = ch;
+  const tCtx = tmp.getContext('2d');
+  tCtx.drawImage(photoCanvas, 0, 0);
 
-    // Sample surrounding area and blend
-    const samples = [
-      { sx: x - r * 1.5, sy: y }, { sx: x + r * 1.5, sy: y },
-      { sx: x, sy: y - r * 1.5 }, { sx: x, sy: y + r * 1.5 },
-    ];
-    samples.forEach(sp => {
-      try {
-        const imgData = pCtx.getImageData(Math.max(0, sp.sx - r/2), Math.max(0, sp.sy - r/2), r, r);
-        oCtx.putImageData(imgData, x - r/2, y - r/2);
-      } catch(e){}
+  // Sample surrounding pixels in a ring pattern
+  const sampleRadius = r * 1.8;
+  const angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
+  let totalR = 0, totalG = 0, totalB = 0, count = 0;
+
+  try {
+    angles.forEach(angle => {
+      const sx = Math.round(x + Math.cos(angle) * sampleRadius);
+      const sy = Math.round(y + Math.sin(angle) * sampleRadius);
+      if (sx >= 0 && sx < cw && sy >= 0 && sy < ch) {
+        const pixel = pCtx.getImageData(sx, sy, 1, 1).data;
+        totalR += pixel[0]; totalG += pixel[1]; totalB += pixel[2];
+        count++;
+      }
     });
+  } catch(e) { return; }
 
-    oCtx.globalAlpha = 0.6;
-    oCtx.filter = `blur(${r * 0.4}px)`;
-    try {
-      oCtx.drawImage(photoCanvas, Math.max(0, x - r*2), Math.max(0, y - r*2), r*4, r*4, x - r*2, y - r*2, r*4, r*4);
-    } catch(e){}
-    oCtx.filter = 'none';
-    oCtx.restore();
-  });
+  if (count === 0) return;
+  const avgR = totalR / count, avgG = totalG / count, avgB = totalB / count;
+
+  // Paint averaged color over the spot area with soft circular gradient
+  pCtx.save();
+  const grad = pCtx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},1)`);
+  grad.addColorStop(0.6, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},0.8)`);
+  grad.addColorStop(1, `rgba(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)},0)`);
+  pCtx.fillStyle = grad;
+  pCtx.beginPath();
+  pCtx.arc(x, y, r, 0, Math.PI * 2);
+  pCtx.fill();
+
+  // Second pass: blur from surrounding area for texture
+  pCtx.globalAlpha = 0.5;
+  pCtx.beginPath();
+  pCtx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+  pCtx.clip();
+  pCtx.filter = `blur(${r * 0.5}px)`;
+  pCtx.drawImage(tmp, Math.max(0, x - r*2), Math.max(0, y - r*2), r*4, r*4,
+                       Math.max(0, x - r*2), Math.max(0, y - r*2), r*4, r*4);
+  pCtx.filter = 'none';
+  pCtx.restore();
 }
 
 // -- Hairline --
@@ -1295,17 +1308,36 @@ function drawHairline(pts) {
 function getFeatureBounds(featureKey) {
   if (!state.landmarks) return null;
   const pts = state.landmarks.positions;
-  const f = state.features[featureKey];
-  if (!f.enabled) return null;
 
   let indices = [];
-  const ox = f.offsetX || 0, oy = f.offsetY || 0;
+  let ox = 0, oy = 0;
 
   switch (featureKey) {
-    case 'eyebrow':  indices = [17,18,19,20,21,22,23,24,25,26]; break;
-    case 'eyeliner': indices = [36,37,38,39,40,41,42,43,44,45,46,47]; break;
-    case 'lip':      indices = [48,49,50,51,52,53,54,55,56,57,58,59]; break;
-    case 'hairline': indices = [17,19,26]; break;
+    case 'eyebrowLeft':
+      if (!state.features.eyebrow.enabled) return null;
+      indices = [17,18,19,20,21];
+      ox = state.features.eyebrow.leftOffsetX; oy = state.features.eyebrow.leftOffsetY;
+      break;
+    case 'eyebrowRight':
+      if (!state.features.eyebrow.enabled) return null;
+      indices = [22,23,24,25,26];
+      ox = state.features.eyebrow.rightOffsetX; oy = state.features.eyebrow.rightOffsetY;
+      break;
+    case 'eyeliner':
+      if (!state.features.eyeliner.enabled) return null;
+      indices = [36,37,38,39,40,41,42,43,44,45,46,47];
+      ox = state.features.eyeliner.offsetX; oy = state.features.eyeliner.offsetY;
+      break;
+    case 'lip':
+      if (!state.features.lip.enabled) return null;
+      indices = [48,49,50,51,52,53,54,55,56,57,58,59];
+      ox = state.features.lip.offsetX; oy = state.features.lip.offsetY;
+      break;
+    case 'hairline':
+      if (!state.features.hairline.enabled) return null;
+      indices = [17,19,26];
+      ox = state.features.hairline.offsetX; oy = state.features.hairline.offsetY;
+      break;
     default: return null;
   }
 
@@ -1316,14 +1348,12 @@ function getFeatureBounds(featureKey) {
     minY = Math.min(minY, y); maxY = Math.max(maxY, y);
   });
 
-  // Expand bounds for easier clicking
   const pad = 20;
   return { minX: minX - pad, maxX: maxX + pad, minY: minY - pad * 2, maxY: maxY + pad };
 }
 
 function hitTestFeature(cx, cy) {
-  // Priority order for overlapping regions
-  const order = ['eyebrow', 'eyeliner', 'lip', 'hairline'];
+  const order = ['eyebrowLeft', 'eyebrowRight', 'eyeliner', 'lip', 'hairline'];
   for (const key of order) {
     const b = getFeatureBounds(key);
     if (b && cx >= b.minX && cx <= b.maxX && cy >= b.minY && cy <= b.maxY) return key;
@@ -1332,22 +1362,40 @@ function hitTestFeature(cx, cy) {
 }
 
 // ---- Interaction: Drag + Mole ----
+function getDragOffset(featureKey) {
+  if (featureKey === 'eyebrowLeft') return { x: state.features.eyebrow.leftOffsetX, y: state.features.eyebrow.leftOffsetY };
+  if (featureKey === 'eyebrowRight') return { x: state.features.eyebrow.rightOffsetX, y: state.features.eyebrow.rightOffsetY };
+  const f = state.features[featureKey];
+  return { x: f.offsetX, y: f.offsetY };
+}
+
+function setDragOffset(featureKey, ox, oy) {
+  if (featureKey === 'eyebrowLeft') { state.features.eyebrow.leftOffsetX = ox; state.features.eyebrow.leftOffsetY = oy; return; }
+  if (featureKey === 'eyebrowRight') { state.features.eyebrow.rightOffsetX = ox; state.features.eyebrow.rightOffsetY = oy; return; }
+  state.features[featureKey].offsetX = ox;
+  state.features[featureKey].offsetY = oy;
+}
+
+function isFeatureEnabled(featureKey) {
+  if (featureKey === 'eyebrowLeft' || featureKey === 'eyebrowRight') return state.features.eyebrow.enabled;
+  return state.features[featureKey] && state.features[featureKey].enabled;
+}
+
 interactionCanvas.addEventListener('mousedown', (e) => {
   if (!state.landmarks) return;
   const { x, y } = getCanvasCoords(e);
 
-  // Mole mode takes priority
   if (state.features.mole.enabled) return;
 
-  // Try to start drag
   const feature = hitTestFeature(x, y);
-  if (feature && state.features[feature].enabled) {
+  if (feature && isFeatureEnabled(feature)) {
+    const off = getDragOffset(feature);
     drag.active = true;
     drag.feature = feature;
     drag.startX = x;
     drag.startY = y;
-    drag.origOX = state.features[feature].offsetX;
-    drag.origOY = state.features[feature].offsetY;
+    drag.origOX = off.x;
+    drag.origOY = off.y;
     interactionCanvas.style.cursor = 'grabbing';
     e.preventDefault();
   }
@@ -1359,13 +1407,11 @@ interactionCanvas.addEventListener('mousemove', (e) => {
   if (drag.active) {
     const dx = x - drag.startX;
     const dy = y - drag.startY;
-    state.features[drag.feature].offsetX = drag.origOX + dx;
-    state.features[drag.feature].offsetY = drag.origOY + dy;
+    setDragOffset(drag.feature, drag.origOX + dx, drag.origOY + dy);
     redraw();
     return;
   }
 
-  // Mole cursor
   if (state.features.mole.enabled) {
     iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
     iCtx.beginPath();
@@ -1378,14 +1424,8 @@ interactionCanvas.addEventListener('mousemove', (e) => {
     return;
   }
 
-  // Hover cursor
   const feature = hitTestFeature(x, y);
-  if (feature && state.features[feature].enabled) {
-    interactionCanvas.style.cursor = 'grab';
-  } else {
-    interactionCanvas.style.cursor = 'crosshair';
-  }
-
+  interactionCanvas.style.cursor = (feature && isFeatureEnabled(feature)) ? 'grab' : 'crosshair';
   iCtx.clearRect(0, 0, interactionCanvas.width, interactionCanvas.height);
 });
 
@@ -1407,32 +1447,14 @@ interactionCanvas.addEventListener('mouseleave', () => {
   interactionCanvas.style.cursor = 'crosshair';
 });
 
-// Mole click (only when not dragging)
+// Mole click → instant removal on photoCanvas
 interactionCanvas.addEventListener('click', (e) => {
-  if (!state.features.mole.enabled || !state.landmarks) return;
+  if (!state.features.mole.enabled) return;
   const { x, y } = getCanvasCoords(e);
-  state.features.mole.spots.push({ x, y, size: state.features.mole.brushSize });
-  updateSpotList();
+  removeMoleAt(x, y, state.features.mole.brushSize);
   redraw();
-  showToast('점 제거 위치가 추가되었습니다.');
+  showToast('점이 제거되었습니다.');
 });
-
-function updateSpotList() {
-  const list = $('#spotList');
-  const spots = state.features.mole.spots;
-  if (!spots.length) {
-    list.innerHTML = '<span style="color:var(--muted);font-size:0.78rem;">아직 없음</span>';
-    return;
-  }
-  list.innerHTML = spots.map((s, i) => `<span class="spot-tag" data-idx="${i}">점 ${i+1} ✕</span>`).join('');
-  list.querySelectorAll('.spot-tag').forEach(tag => {
-    tag.addEventListener('click', () => {
-      spots.splice(parseInt(tag.dataset.idx), 1);
-      updateSpotList();
-      redraw();
-    });
-  });
-}
 
 // ---- Panel Toggles ----
 $$('.panel-header').forEach(header => {
@@ -1461,11 +1483,7 @@ $$('.feature-delete-btn').forEach(btn => {
     const def = DEFAULTS[key];
     // Reset to defaults
     Object.keys(def).forEach(prop => {
-      if (prop === 'spots') {
-        state.features[key].spots = [];
-      } else {
-        state.features[key][prop] = def[prop];
-      }
+      state.features[key][prop] = def[prop];
     });
     // Update UI
     const toggle = $(`#toggle${capitalize(key)}`);
@@ -1473,9 +1491,7 @@ $$('.feature-delete-btn').forEach(btn => {
     if (toggle) toggle.classList.remove('active');
     if (body) body.classList.remove('open');
 
-    // Reset UI controls
     resetControlUI(key);
-    if (key === 'mole') updateSpotList();
     redraw();
     showToast(`${getFeatureName(key)} 삭제됨`);
   });
@@ -1584,20 +1600,15 @@ bindRange('hairlineDensity', 'hairline', 'density', 'hairlineDensityVal', '%', v
 // Delete image
 $('#btnDelete').addEventListener('click', () => {
   if (!state.image) return;
-  // Reset everything
   state.image = null;
   state.landmarks = null;
   Object.keys(DEFAULTS).forEach(k => {
     const def = DEFAULTS[k];
-    Object.keys(def).forEach(prop => {
-      if (prop === 'spots') state.features[k].spots = [];
-      else state.features[k][prop] = def[prop];
-    });
+    Object.keys(def).forEach(prop => { state.features[k][prop] = def[prop]; });
     resetControlUI(k);
   });
   $$('.toggle-switch').forEach(t => t.classList.remove('active'));
   $$('.panel-body').forEach(p => p.classList.remove('open'));
-  updateSpotList();
 
   pCtx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
   oCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -1615,15 +1626,11 @@ $('#btnDelete').addEventListener('click', () => {
 $('#btnReset').addEventListener('click', () => {
   Object.keys(DEFAULTS).forEach(k => {
     const def = DEFAULTS[k];
-    Object.keys(def).forEach(prop => {
-      if (prop === 'spots') state.features[k].spots = [];
-      else state.features[k][prop] = def[prop];
-    });
+    Object.keys(def).forEach(prop => { state.features[k][prop] = def[prop]; });
     resetControlUI(k);
   });
   $$('.toggle-switch').forEach(t => t.classList.remove('active'));
   $$('.panel-body').forEach(p => p.classList.remove('open'));
-  updateSpotList();
   redraw();
   showToast('초기화 되었습니다.');
 });
