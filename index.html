@@ -984,12 +984,12 @@
         <li><a href="#trends" data-i18n="nav.trends">뷰티정보</a></li>
       </ul>
       <div class="lang-switcher">
-        <button class="lang-btn" id="langBtn">🌐 KO</button>
-        <div class="lang-dropdown" id="langDropdown">
-          <button class="lang-option active" data-lang="ko">🇰🇷 한국어</button>
-          <button class="lang-option" data-lang="en">🇺🇸 English</button>
-          <button class="lang-option" data-lang="ja">🇯🇵 日本語</button>
-          <button class="lang-option" data-lang="zh">🇨🇳 中文</button>
+        <button class="lang-btn" id="langBtn" aria-haspopup="true" aria-expanded="false">🌐 KO</button>
+        <div class="lang-dropdown" id="langDropdown" role="menu">
+          <button class="lang-option active" data-lang="ko" tabindex="0" role="menuitem">🇰🇷 한국어</button>
+          <button class="lang-option" data-lang="en" tabindex="0" role="menuitem">🇺🇸 English</button>
+          <button class="lang-option" data-lang="ja" tabindex="0" role="menuitem">🇯🇵 日本語</button>
+          <button class="lang-option" data-lang="zh" tabindex="0" role="menuitem">🇨🇳 中文</button>
         </div>
       </div>
     </div>
@@ -2756,7 +2756,10 @@ const i18n = {
   }
 };
 
-let currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('ja') ? 'ja' : navigator.language.startsWith('zh') ? 'zh' : navigator.language.startsWith('en') ? 'en' : 'ko');
+// Language priority: URL param > localStorage > browser language
+const urlLang = new URLSearchParams(window.location.search).get('lang');
+const validLangs = ['ko', 'en', 'ja', 'zh'];
+let currentLang = (urlLang && validLangs.includes(urlLang)) ? urlLang : localStorage.getItem('lang') || (navigator.language.startsWith('ja') ? 'ja' : navigator.language.startsWith('zh') ? 'zh' : navigator.language.startsWith('en') ? 'en' : 'ko');
 
 function t(key) {
   return (i18n[currentLang] && i18n[currentLang][key]) || (i18n.ko[key]) || key;
@@ -2802,20 +2805,53 @@ function applyLanguage(lang) {
 }
 
 // Language switcher events
-const langBtn = document.getElementById('langBtn');
-const langDropdown = document.getElementById('langDropdown');
-if (langBtn && langDropdown) {
-  langBtn.addEventListener('click', (e) => {
+const langBtnEl = document.getElementById('langBtn');
+const langDropdownEl = document.getElementById('langDropdown');
+if (langBtnEl && langDropdownEl) {
+  langBtnEl.addEventListener('click', (e) => {
     e.stopPropagation();
-    langDropdown.classList.toggle('open');
+    const isOpen = langDropdownEl.classList.toggle('open');
+    langBtnEl.setAttribute('aria-expanded', isOpen);
+    if (isOpen) {
+      const activeOpt = langDropdownEl.querySelector('.lang-option.active') || langDropdownEl.querySelector('.lang-option');
+      if (activeOpt) activeOpt.focus();
+    }
   });
   document.querySelectorAll('.lang-option').forEach(opt => {
     opt.addEventListener('click', () => {
       applyLanguage(opt.dataset.lang);
-      langDropdown.classList.remove('open');
+      langDropdownEl.classList.remove('open');
+      langBtnEl.focus();
+      // Update URL with lang param
+      const url = new URL(window.location);
+      url.searchParams.set('lang', opt.dataset.lang);
+      window.history.replaceState({}, '', url);
+    });
+    // Keyboard navigation for options
+    opt.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        opt.click();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const next = opt.nextElementSibling;
+        if (next) next.focus();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prev = opt.previousElementSibling;
+        if (prev) prev.focus();
+      }
     });
   });
-  document.addEventListener('click', () => langDropdown.classList.remove('open'));
+  // Close on outside click
+  document.addEventListener('click', () => langDropdownEl.classList.remove('open'));
+  // Close on ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && langDropdownEl.classList.contains('open')) {
+      langDropdownEl.classList.remove('open');
+      langBtnEl.focus();
+    }
+  });
 }
 
 // ---- Init ----
