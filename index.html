@@ -1852,73 +1852,52 @@ function drawLips(pts) {
 function removeMoleAt(x, y, brushSize) {
   const r = brushSize;
   const cw = photoCanvas.width, ch = photoCanvas.height;
+  x = Math.round(x); y = Math.round(y);
 
-  // Get image data for a region around the click
-  const margin = Math.ceil(r * 2.5);
-  const sx = Math.max(0, Math.round(x - margin));
-  const sy = Math.max(0, Math.round(y - margin));
-  const sw = Math.min(cw - sx, Math.ceil(margin * 2));
-  const sh = Math.min(ch - sy, Math.ceil(margin * 2));
-  if (sw <= 0 || sh <= 0) return;
-
-  const imageData = pCtx.getImageData(sx, sy, sw, sh);
-  const origData = new Uint8ClampedArray(imageData.data);
-  const data = imageData.data;
-  const cx = x - sx;
-  const cy = y - sy;
-
-  // Collect boundary samples from a ring just outside the brush
-  const numSamples = 36;
-  const rings = [r * 1.15, r * 1.4, r * 1.7];
-  const samples = [];
-  for (const sampleR of rings) {
-    for (let i = 0; i < numSamples; i++) {
-      const angle = (i / numSamples) * Math.PI * 2;
-      const sampX = Math.round(cx + Math.cos(angle) * sampleR);
-      const sampY = Math.round(cy + Math.sin(angle) * sampleR);
-      if (sampX >= 0 && sampX < sw && sampY >= 0 && sampY < sh) {
-        const idx = (sampY * sw + sampX) * 4;
-        samples.push({ x: sampX, y: sampY, angle, r: origData[idx], g: origData[idx+1], b: origData[idx+2] });
-      }
+  // Step 1: Sample average skin color from surrounding ring
+  const sampleR = r * 1.6;
+  let tR = 0, tG = 0, tB = 0, cnt = 0;
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    const sx = Math.round(x + Math.cos(a) * sampleR);
+    const sy = Math.round(y + Math.sin(a) * sampleR);
+    if (sx >= 0 && sx < cw && sy >= 0 && sy < ch) {
+      try {
+        const p = pCtx.getImageData(sx, sy, 1, 1).data;
+        tR += p[0]; tG += p[1]; tB += p[2]; cnt++;
+      } catch(e) { /* skip */ }
     }
   }
-  if (samples.length === 0) return;
+  if (cnt === 0) return;
+  const avgR = Math.round(tR / cnt), avgG = Math.round(tG / cnt), avgB = Math.round(tB / cnt);
 
-  // For each pixel inside the brush, interpolate from boundary samples
-  for (let py = 0; py < sh; py++) {
-    for (let px = 0; px < sw; px++) {
-      const dx = px - cx;
-      const dy = py - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > r) continue;
+  // Step 2: Fill the spot with averaged surrounding color (soft radial gradient)
+  pCtx.save();
+  const grad = pCtx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, `rgba(${avgR},${avgG},${avgB},1)`);
+  grad.addColorStop(0.6, `rgba(${avgR},${avgG},${avgB},0.9)`);
+  grad.addColorStop(1, `rgba(${avgR},${avgG},${avgB},0)`);
+  pCtx.fillStyle = grad;
+  pCtx.beginPath();
+  pCtx.arc(x, y, r, 0, Math.PI * 2);
+  pCtx.fill();
+  pCtx.restore();
 
-      // Smoothstep blend: strongest at center, fades at edge
-      const t = dist / r;
-      const blend = 1.0 - t * t * (3.0 - 2.0 * t);
+  // Step 3: Blur-blend for smooth transition with surrounding skin
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = cw; tmpCanvas.height = ch;
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.filter = `blur(${Math.max(3, Math.round(r * 0.5))}px)`;
+  tmpCtx.drawImage(photoCanvas, 0, 0);
+  tmpCtx.filter = 'none';
 
-      // Weighted average of boundary samples (angular + distance proximity)
-      const angle = Math.atan2(dy, dx);
-      let totalW = 0, avgR = 0, avgG = 0, avgB = 0;
-      for (const s of samples) {
-        let ad = Math.abs(s.angle - angle);
-        if (ad > Math.PI) ad = Math.PI * 2 - ad;
-        const w = Math.pow(Math.max(0, Math.cos(ad * 0.8)), 3);
-        totalW += w;
-        avgR += s.r * w;
-        avgG += s.g * w;
-        avgB += s.b * w;
-      }
-      if (totalW === 0) continue;
-      avgR /= totalW; avgG /= totalW; avgB /= totalW;
-
-      const dstIdx = (py * sw + px) * 4;
-      data[dstIdx]     = Math.round(origData[dstIdx]     * (1 - blend) + avgR * blend);
-      data[dstIdx + 1] = Math.round(origData[dstIdx + 1] * (1 - blend) + avgG * blend);
-      data[dstIdx + 2] = Math.round(origData[dstIdx + 2] * (1 - blend) + avgB * blend);
-    }
-  }
-
-  pCtx.putImageData(imageData, sx, sy);
+  pCtx.save();
+  pCtx.beginPath();
+  pCtx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+  pCtx.clip();
+  pCtx.globalAlpha = 0.55;
+  pCtx.drawImage(tmpCanvas, 0, 0);
+  pCtx.restore();
 }
 
 // -- Hairline (manual painting mode) --
