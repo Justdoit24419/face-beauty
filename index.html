@@ -1297,6 +1297,82 @@
       font-style: italic;
     }
 
+    /* SNS Share bar */
+    .share-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .share-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0;
+    }
+    .share-btn:hover { transform: scale(1.1); }
+    .share-kakao:hover { background: #FEE500; color: #3C1E1E; border-color: #FEE500; }
+    .share-twitter:hover { background: #000; color: #fff; border-color: #000; }
+    .share-facebook:hover { background: #1877F2; color: #fff; border-color: #1877F2; }
+    .share-line:hover { background: #06C755; color: #fff; border-color: #06C755; }
+    .share-copy:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Floating share button (mobile) */
+    .floating-share {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .floating-share-toggle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(196,113,245,0.4);
+      transition: transform 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .floating-share-toggle:hover { transform: scale(1.1); }
+    .floating-share-menu {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .floating-share.open .floating-share-menu { display: flex; }
+    .floating-share.open .floating-share-toggle { transform: rotate(45deg); }
+    .floating-share-menu .share-btn {
+      width: 38px;
+      height: 38px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
     /* Footer */
     .site-footer {
       background: var(--surface);
@@ -1414,6 +1490,25 @@
       완전 무료, 회원가입 불필요, 사진은 서버에 저장되지 않습니다.
     </p>
     <a href="#simulator" class="cta-btn" data-i18n="hero.cta">무료로 시작하기</a>
+    <!-- SNS Share Buttons -->
+    <div class="share-bar" id="shareBar">
+      <span class="share-label" data-i18n="share.label">공유하기</span>
+      <button class="share-btn share-kakao" id="shareKakao" title="카카오톡 공유">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.48 3 2 6.58 2 10.94c0 2.8 1.86 5.27 4.66 6.67-.15.56-.96 3.6-.99 3.83 0 0-.02.17.09.23.11.07.24.01.24.01.32-.04 3.7-2.44 4.28-2.85.56.08 1.14.12 1.72.12 5.52 0 10-3.58 10-7.94S17.52 3 12 3z"/></svg>
+      </button>
+      <button class="share-btn share-twitter" id="shareTwitter" title="X(Twitter) 공유">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </button>
+      <button class="share-btn share-facebook" id="shareFacebook" title="Facebook 공유">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </button>
+      <button class="share-btn share-line" id="shareLine" title="LINE 공유">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738S0 4.935 0 10.304c0 4.814 4.27 8.846 10.035 9.608.391.084.922.258 1.057.592.121.303.079.777.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967C23.311 14.182 24 12.362 24 10.304zM8.039 12.968H5.805a.596.596 0 01-.596-.596V8.38a.596.596 0 111.192 0v3.396h1.638a.596.596 0 110 1.192zm2.428-.596a.596.596 0 11-1.192 0V8.38a.596.596 0 111.192 0v3.992zm5.006 0a.596.596 0 01-1.078.346l-2.014-2.747v2.401a.596.596 0 11-1.192 0V8.38a.596.596 0 011.078-.347l2.014 2.748V8.38a.596.596 0 111.192 0v3.992zm3.887-2.907a.596.596 0 110 1.192h-1.638v.919h1.638a.596.596 0 110 1.192H17.37a.596.596 0 01-.596-.596V8.38c0-.329.267-.596.596-.596h1.992a.596.596 0 110 1.192H17.72v.889h1.638z"/></svg>
+      </button>
+      <button class="share-btn share-copy" id="shareCopy" title="URL 복사">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </button>
+    </div>
   </section>
 
   <!-- GEO: Citable summary block for AI engines (top-of-page structured text) -->
@@ -2028,10 +2123,113 @@
     </div>
   </footer>
 
+  <!-- Floating Share Button -->
+  <div class="floating-share" id="floatingShare">
+    <div class="floating-share-menu">
+      <button class="share-btn share-kakao" onclick="shareToKakao()" title="카카오톡">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.48 3 2 6.58 2 10.94c0 2.8 1.86 5.27 4.66 6.67-.15.56-.96 3.6-.99 3.83 0 0-.02.17.09.23.11.07.24.01.24.01.32-.04 3.7-2.44 4.28-2.85.56.08 1.14.12 1.72.12 5.52 0 10-3.58 10-7.94S17.52 3 12 3z"/></svg>
+      </button>
+      <button class="share-btn share-twitter" onclick="shareToTwitter()" title="X(Twitter)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </button>
+      <button class="share-btn share-facebook" onclick="shareToFacebook()" title="Facebook">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </button>
+      <button class="share-btn share-line" onclick="shareToLine()" title="LINE">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738S0 4.935 0 10.304c0 4.814 4.27 8.846 10.035 9.608.391.084.922.258 1.057.592.121.303.079.777.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967C23.311 14.182 24 12.362 24 10.304zM8.039 12.968H5.805a.596.596 0 01-.596-.596V8.38a.596.596 0 111.192 0v3.396h1.638a.596.596 0 110 1.192zm2.428-.596a.596.596 0 11-1.192 0V8.38a.596.596 0 111.192 0v3.992zm5.006 0a.596.596 0 01-1.078.346l-2.014-2.747v2.401a.596.596 0 11-1.192 0V8.38a.596.596 0 011.078-.347l2.014 2.748V8.38a.596.596 0 111.192 0v3.992zm3.887-2.907a.596.596 0 110 1.192h-1.638v.919h1.638a.596.596 0 110 1.192H17.37a.596.596 0 01-.596-.596V8.38c0-.329.267-.596.596-.596h1.992a.596.596 0 110 1.192H17.72v.889h1.638z"/></svg>
+      </button>
+      <button class="share-btn share-copy" onclick="copyShareUrl()" title="URL 복사">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </button>
+    </div>
+    <button class="floating-share-toggle" id="floatingShareToggle" title="공유하기">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+  </div>
+
   <div class="toast" id="toast"></div>
   <input type="file" id="fileInput" accept="image/*" style="display:none" />
 
 <script>
+// ===== SNS Share Functions =====
+const SHARE_URL = 'https://face-beauty.pages.dev/';
+const SHARE_TITLE = 'AI 얼굴 뷰티 시뮬레이터 - 무료 반영구 문신 미리보기';
+const SHARE_DESC = 'AI로 눈썹 문신, 아이라인, 입술 문신, 점 제거를 내 얼굴에 미리 적용해보세요. 완전 무료!';
+
+function shareToKakao() {
+  if (window.Kakao && Kakao.isInitialized()) {
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: { title: SHARE_TITLE, description: SHARE_DESC, imageUrl: SHARE_URL + 'og-image.png', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } },
+      buttons: [{ title: '무료로 체험하기', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } }]
+    });
+  } else {
+    window.open('https://story.kakao.com/share?url=' + encodeURIComponent(SHARE_URL), '_blank', 'width=600,height=400');
+  }
+}
+
+function shareToTwitter() {
+  window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(SHARE_TITLE) + '&url=' + encodeURIComponent(SHARE_URL), '_blank', 'width=600,height=400');
+}
+
+function shareToFacebook() {
+  window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(SHARE_URL), '_blank', 'width=600,height=400');
+}
+
+function shareToLine() {
+  window.open('https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(SHARE_URL), '_blank', 'width=600,height=400');
+}
+
+function copyShareUrl() {
+  navigator.clipboard.writeText(SHARE_URL).then(function() {
+    showToast(document.documentElement.lang === 'en' ? 'URL copied!' : 'URL이 복사되었습니다!');
+  }).catch(function() {
+    var t = document.createElement('textarea');
+    t.value = SHARE_URL;
+    document.body.appendChild(t);
+    t.select();
+    document.execCommand('copy');
+    document.body.removeChild(t);
+    showToast('URL이 복사되었습니다!');
+  });
+}
+
+// Hero share bar click handlers
+document.addEventListener('DOMContentLoaded', function() {
+  var heroKakao = document.getElementById('shareKakao');
+  var heroTwitter = document.getElementById('shareTwitter');
+  var heroFacebook = document.getElementById('shareFacebook');
+  var heroLine = document.getElementById('shareLine');
+  var heroCopy = document.getElementById('shareCopy');
+  if (heroKakao) heroKakao.addEventListener('click', shareToKakao);
+  if (heroTwitter) heroTwitter.addEventListener('click', shareToTwitter);
+  if (heroFacebook) heroFacebook.addEventListener('click', shareToFacebook);
+  if (heroLine) heroLine.addEventListener('click', shareToLine);
+  if (heroCopy) heroCopy.addEventListener('click', copyShareUrl);
+
+  // Floating share toggle
+  var floatingToggle = document.getElementById('floatingShareToggle');
+  var floatingShare = document.getElementById('floatingShare');
+  if (floatingToggle && floatingShare) {
+    floatingToggle.addEventListener('click', function() {
+      floatingShare.classList.toggle('open');
+    });
+  }
+
+  // Web Share API (native share on mobile)
+  if (navigator.share) {
+    var nativeBtn = document.createElement('button');
+    nativeBtn.className = 'share-btn share-native';
+    nativeBtn.title = '더보기';
+    nativeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>';
+    nativeBtn.addEventListener('click', function() {
+      navigator.share({ title: SHARE_TITLE, text: SHARE_DESC, url: SHARE_URL });
+    });
+    var shareBar = document.getElementById('shareBar');
+    if (shareBar) shareBar.appendChild(nativeBtn);
+  }
+});
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
