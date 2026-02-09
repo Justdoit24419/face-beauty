@@ -1373,6 +1373,360 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
+    /* ===== Feedback Widget ===== */
+    .feedback-widget {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 1000;
+      font-family: "Space Grotesk", "Noto Sans KR", sans-serif;
+    }
+
+    .feedback-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 24px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(196,113,245,0.4);
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .feedback-trigger:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(196,113,245,0.5); }
+
+    .feedback-panel {
+      display: none;
+      position: absolute;
+      bottom: 52px;
+      left: 0;
+      width: 340px;
+      max-height: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      flex-direction: column;
+    }
+    .feedback-widget.open .feedback-panel { display: flex; }
+    .feedback-widget.open .feedback-trigger { display: none; }
+
+    @media (max-width: 500px) {
+      .feedback-panel {
+        width: calc(100vw - 48px);
+        left: 0;
+        bottom: 52px;
+      }
+    }
+
+    .feedback-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .feedback-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .feedback-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .feedback-header-title { font-size: 0.92rem; font-weight: 600; }
+    .feedback-header-actions { display: flex; gap: 4px; }
+    .feedback-header-actions button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .feedback-header-actions button:hover { background: rgba(255,255,255,0.2); }
+
+    .feedback-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .feedback-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 6px;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+    }
+    .feedback-tab:hover { color: var(--text); }
+    .feedback-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .feedback-form {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feedback-input, .feedback-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .feedback-input:focus, .feedback-textarea:focus {
+      border-color: var(--accent);
+    }
+    .feedback-input::placeholder, .feedback-textarea::placeholder {
+      color: var(--muted);
+    }
+    .feedback-textarea { resize: vertical; min-height: 80px; }
+
+    .feedback-extras {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .feedback-rating {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .rating-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+    .rating-emoji {
+      background: none;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 3px 4px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      opacity: 0.5;
+    }
+    .rating-emoji:hover { opacity: 1; transform: scale(1.2); }
+    .rating-emoji.selected { opacity: 1; border-color: var(--accent); background: rgba(196,113,245,0.1); }
+
+    .feedback-submit {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      font-family: inherit;
+    }
+    .feedback-submit:hover { opacity: 0.9; }
+
+    .feedback-success {
+      padding: 32px 20px;
+      text-align: center;
+    }
+    .success-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .feedback-success h4 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text); }
+    .feedback-success p { font-size: 0.84rem; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+    .feedback-success .feedback-submit { margin-top: 8px; }
+
+    .feedback-annotate-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .feedback-annotate-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(196,113,245,0.05);
+    }
+
+    .annotation-preview {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(196,113,245,0.08);
+      border: 1px solid rgba(196,113,245,0.2);
+      border-radius: 8px;
+    }
+    .annotation-preview img {
+      width: 48px;
+      height: 36px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .annotation-preview span {
+      flex: 1;
+      font-size: 0.78rem;
+      color: var(--accent);
+    }
+    .annotation-preview button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 2px 6px;
+    }
+    .annotation-preview button:hover { color: var(--danger); }
+
+    /* ===== Annotation Overlay ===== */
+    #annotationOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10000;
+      background: rgba(0,0,0,0.15);
+      cursor: crosshair;
+    }
+    #annotationCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .annotation-toolbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      z-index: 10001;
+    }
+    .ann-tool {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .ann-tool:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .ann-tool.active { background: rgba(196,113,245,0.15); color: var(--accent); border-color: var(--accent); }
+    .ann-done {
+      width: auto !important;
+      padding: 0 14px !important;
+      background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+      color: #fff !important;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border-radius: 8px;
+    }
+    .ann-done:hover { opacity: 0.9; }
+    .ann-cancel {
+      width: auto !important;
+      padding: 0 10px !important;
+      color: var(--muted) !important;
+      font-size: 0.9rem;
+    }
+    .ann-cancel:hover { color: var(--danger) !important; }
+    .ann-sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+    .ann-color {
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      cursor: pointer;
+      padding: 0;
+      background: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .ann-color::-webkit-color-swatch-wrapper { padding: 0; }
+    .ann-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+
+    .annotation-hint {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.88rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      z-index: 10001;
+      animation: hintPulse 2s ease-in-out infinite;
+    }
+    @keyframes hintPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
     /* Footer */
     .site-footer {
       background: var(--surface);
@@ -2123,6 +2477,84 @@
     </div>
   </footer>
 
+  <!-- ===== Feedback Widget ===== -->
+  <div class="feedback-widget" id="feedbackWidget">
+    <!-- Trigger Button -->
+    <button class="feedback-trigger" id="feedbackTrigger">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span data-i18n="feedback.trigger">피드백</span>
+    </button>
+
+    <!-- Feedback Panel -->
+    <div class="feedback-panel" id="feedbackPanel">
+      <div class="feedback-header">
+        <div class="feedback-header-left">
+          <span class="feedback-logo">B</span>
+          <span class="feedback-header-title" data-i18n="feedback.title">의견을 보내주세요!</span>
+        </div>
+        <div class="feedback-header-actions">
+          <button class="feedback-minimize" id="feedbackMinimize" title="최소화">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="feedback-close" id="feedbackClose" title="닫기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="feedback-tabs">
+        <button class="feedback-tab active" data-tab="feedback">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span data-i18n="feedback.tab.feedback">피드백</span>
+        </button>
+        <button class="feedback-tab" data-tab="bug">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span data-i18n="feedback.tab.bug">버그 리포트</span>
+        </button>
+        <button class="feedback-tab" data-tab="feature">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span data-i18n="feedback.tab.feature">기능 요청</span>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <form class="feedback-form" id="feedbackForm">
+        <input type="text" class="feedback-input" id="feedbackName" placeholder="이름" data-i18n-placeholder="feedback.name" required />
+        <input type="email" class="feedback-input" id="feedbackEmail" placeholder="이메일 주소" data-i18n-placeholder="feedback.email" required />
+        <textarea class="feedback-textarea" id="feedbackMessage" placeholder="의견을 남겨주세요" data-i18n-placeholder="feedback.message" rows="4" required></textarea>
+
+        <!-- Screenshot annotation button -->
+        <button type="button" class="feedback-annotate-btn" id="feedbackAnnotate">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+          <span data-i18n="feedback.annotate">화면에 표시하기</span>
+        </button>
+
+        <!-- Screenshot / Rating -->
+        <div class="feedback-extras">
+          <div class="feedback-rating" id="feedbackRating">
+            <span class="rating-label" data-i18n="feedback.rating">만족도</span>
+            <button type="button" class="rating-emoji" data-rating="1" title="불만족">😞</button>
+            <button type="button" class="rating-emoji" data-rating="2" title="보통">😐</button>
+            <button type="button" class="rating-emoji" data-rating="3" title="좋아요">🙂</button>
+            <button type="button" class="rating-emoji" data-rating="4" title="매우좋아요">😊</button>
+            <button type="button" class="rating-emoji" data-rating="5" title="최고">🤩</button>
+          </div>
+        </div>
+
+        <button type="submit" class="feedback-submit" data-i18n="feedback.submit">피드백 보내기</button>
+      </form>
+
+      <!-- Success Message -->
+      <div class="feedback-success" id="feedbackSuccess" style="display:none">
+        <div class="success-icon">✅</div>
+        <h4 data-i18n="feedback.thanks">감사합니다!</h4>
+        <p data-i18n="feedback.thanksDesc">소중한 의견이 전달되었습니다. 더 나은 서비스를 위해 노력하겠습니다.</p>
+        <button class="feedback-submit" id="feedbackAnother" data-i18n="feedback.another">다른 의견 보내기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Share Button -->
   <div class="floating-share" id="floatingShare">
     <div class="floating-share-menu">
@@ -2151,6 +2583,274 @@
   <input type="file" id="fileInput" accept="image/*" style="display:none" />
 
 <script>
+// ===== Feedback Widget + Annotation Tool =====
+(function() {
+  var widget, panel, trigger, form, successEl;
+  var selectedTab = 'feedback';
+  var selectedRating = 0;
+  var annotationData = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    widget = document.getElementById('feedbackWidget');
+    panel = document.getElementById('feedbackPanel');
+    trigger = document.getElementById('feedbackTrigger');
+    form = document.getElementById('feedbackForm');
+    successEl = document.getElementById('feedbackSuccess');
+
+    // Open / Close
+    trigger.addEventListener('click', function() { widget.classList.add('open'); });
+    document.getElementById('feedbackClose').addEventListener('click', closeFeedback);
+    document.getElementById('feedbackMinimize').addEventListener('click', closeFeedback);
+
+    // Tabs
+    document.querySelectorAll('.feedback-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.feedback-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        selectedTab = tab.getAttribute('data-tab');
+      });
+    });
+
+    // Rating
+    document.querySelectorAll('.rating-emoji').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.rating-emoji').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        selectedRating = parseInt(btn.getAttribute('data-rating'));
+      });
+    });
+
+    // Annotate button
+    var annotateBtn = document.getElementById('feedbackAnnotate');
+    if (annotateBtn) annotateBtn.addEventListener('click', startAnnotation);
+
+    // Submit
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var name = document.getElementById('feedbackName').value;
+      var email = document.getElementById('feedbackEmail').value;
+      var message = document.getElementById('feedbackMessage').value;
+      var ratingText = ['', '불만족', '보통', '좋아요', '매우좋아요', '최고'][selectedRating] || '미선택';
+      var body = '[카테고리] ' + selectedTab + '\n[만족도] ' + ratingText + '\n[이름] ' + name + '\n[이메일] ' + email + '\n\n' + message;
+      if (annotationData) body += '\n\n[주석 이미지가 첨부되어 있습니다 - 아래 링크에서 확인]';
+      var mailto = 'mailto:moneyqueen41@gmail.com?subject=' + encodeURIComponent('피드백: ' + selectedTab + ' - AI 뷰티 시뮬레이터') + '&body=' + encodeURIComponent(body);
+      window.open(mailto);
+      form.style.display = 'none';
+      document.querySelector('.feedback-tabs').style.display = 'none';
+      document.querySelector('.feedback-extras').style.display = 'none';
+      successEl.style.display = 'block';
+      if (annotationData) downloadAnnotation();
+    });
+
+    // Another feedback
+    document.getElementById('feedbackAnother').addEventListener('click', function() {
+      form.reset();
+      form.style.display = 'flex';
+      document.querySelector('.feedback-tabs').style.display = 'flex';
+      document.querySelector('.feedback-extras').style.display = 'flex';
+      successEl.style.display = 'none';
+      annotationData = null;
+      var preview = document.getElementById('annotationPreview');
+      if (preview) preview.remove();
+      document.querySelectorAll('.rating-emoji').forEach(function(b) { b.classList.remove('selected'); });
+      selectedRating = 0;
+    });
+  });
+
+  function closeFeedback() { widget.classList.remove('open'); }
+
+  function downloadAnnotation() {
+    if (!annotationData) return;
+    var a = document.createElement('a');
+    a.href = annotationData;
+    a.download = 'feedback-screenshot.png';
+    a.click();
+  }
+
+  // ===== Annotation Mode =====
+  function startAnnotation() {
+    closeFeedback();
+    setTimeout(function() {
+      var overlay = document.createElement('div');
+      overlay.id = 'annotationOverlay';
+      overlay.innerHTML = '<div class="annotation-toolbar">' +
+        '<button class="ann-tool active" data-tool="pen" title="펜"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/></svg></button>' +
+        '<button class="ann-tool" data-tool="rect" title="사각형"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>' +
+        '<button class="ann-tool" data-tool="arrow" title="화살표"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>' +
+        '<button class="ann-tool" data-tool="highlight" title="형광펜"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-6 6v3h9l3-3"/><path d="M22 12l-4.6 4.6a2 2 0 01-2.8 0l-5.2-5.2a2 2 0 010-2.8L14 4"/></svg></button>' +
+        '<span class="ann-sep"></span>' +
+        '<input type="color" class="ann-color" value="#ff4757" title="색상" />' +
+        '<button class="ann-tool" data-tool="undo" title="되돌리기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></button>' +
+        '<span class="ann-sep"></span>' +
+        '<button class="ann-tool ann-done" id="annDone" title="완료">✓ 완료</button>' +
+        '<button class="ann-tool ann-cancel" id="annCancel" title="취소">✕</button>' +
+        '</div>' +
+        '<canvas id="annotationCanvas"></canvas>' +
+        '<div class="annotation-hint">화면에 표시하고 싶은 부분을 그려주세요</div>';
+      document.body.appendChild(overlay);
+
+      var canvas = document.getElementById('annotationCanvas');
+      var ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      var currentTool = 'pen';
+      var color = '#ff4757';
+      var drawing = false;
+      var startX, startY;
+      var paths = [];
+      var currentPath = [];
+
+      // Tool selection
+      overlay.querySelectorAll('.ann-tool[data-tool]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tool = btn.getAttribute('data-tool');
+          if (tool === 'undo') { paths.pop(); redraw(); return; }
+          overlay.querySelectorAll('.ann-tool[data-tool]').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          currentTool = tool;
+        });
+      });
+
+      overlay.querySelector('.ann-color').addEventListener('input', function(e) { color = e.target.value; });
+
+      // Drawing
+      canvas.addEventListener('mousedown', onDown);
+      canvas.addEventListener('mousemove', onMove);
+      canvas.addEventListener('mouseup', onUp);
+      canvas.addEventListener('touchstart', function(e) { e.preventDefault(); onDown(e.touches[0]); }, { passive: false });
+      canvas.addEventListener('touchmove', function(e) { e.preventDefault(); onMove(e.touches[0]); }, { passive: false });
+      canvas.addEventListener('touchend', function(e) { onUp(e); });
+
+      function onDown(e) {
+        drawing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        if (currentTool === 'pen' || currentTool === 'highlight') {
+          currentPath = [{ x: startX, y: startY }];
+        }
+      }
+
+      function onMove(e) {
+        if (!drawing) return;
+        if (currentTool === 'pen') {
+          currentPath.push({ x: e.clientX, y: e.clientY });
+          redraw();
+          ctx.beginPath();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          for (var i = 0; i < currentPath.length; i++) {
+            if (i === 0) ctx.moveTo(currentPath[i].x, currentPath[i].y);
+            else ctx.lineTo(currentPath[i].x, currentPath[i].y);
+          }
+          ctx.stroke();
+        } else if (currentTool === 'highlight') {
+          currentPath.push({ x: e.clientX, y: e.clientY });
+          redraw();
+          ctx.beginPath();
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.3;
+          ctx.lineWidth = 20;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          for (var j = 0; j < currentPath.length; j++) {
+            if (j === 0) ctx.moveTo(currentPath[j].x, currentPath[j].y);
+            else ctx.lineTo(currentPath[j].x, currentPath[j].y);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        } else if (currentTool === 'rect') {
+          redraw();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.strokeRect(startX, startY, e.clientX - startX, e.clientY - startY);
+        } else if (currentTool === 'arrow') {
+          redraw();
+          drawArrow(ctx, startX, startY, e.clientX, e.clientY, color);
+        }
+      }
+
+      function onUp(e) {
+        if (!drawing) return;
+        drawing = false;
+        var ex = e.clientX || (e.changedTouches && e.changedTouches[0].clientX) || startX;
+        var ey = e.clientY || (e.changedTouches && e.changedTouches[0].clientY) || startY;
+        paths.push({ tool: currentTool, color: color, points: currentPath.slice(), startX: startX, startY: startY, endX: ex, endY: ey });
+        currentPath = [];
+        redraw();
+      }
+
+      function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        paths.forEach(function(p) {
+          ctx.globalAlpha = 1;
+          if (p.tool === 'pen') {
+            ctx.beginPath(); ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            p.points.forEach(function(pt, i) { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.stroke();
+          } else if (p.tool === 'highlight') {
+            ctx.beginPath(); ctx.strokeStyle = p.color; ctx.globalAlpha = 0.3; ctx.lineWidth = 20; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            p.points.forEach(function(pt, i) { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.stroke(); ctx.globalAlpha = 1;
+          } else if (p.tool === 'rect') {
+            ctx.strokeStyle = p.color; ctx.lineWidth = 3;
+            ctx.strokeRect(p.startX, p.startY, p.endX - p.startX, p.endY - p.startY);
+          } else if (p.tool === 'arrow') {
+            drawArrow(ctx, p.startX, p.startY, p.endX, p.endY, p.color);
+          }
+        });
+      }
+
+      function drawArrow(c, fx, fy, tx, ty, col) {
+        var headLen = 15;
+        var angle = Math.atan2(ty - fy, tx - fx);
+        c.beginPath(); c.strokeStyle = col; c.lineWidth = 3; c.lineCap = 'round';
+        c.moveTo(fx, fy); c.lineTo(tx, ty); c.stroke();
+        c.beginPath(); c.fillStyle = col;
+        c.moveTo(tx, ty);
+        c.lineTo(tx - headLen * Math.cos(angle - Math.PI / 6), ty - headLen * Math.sin(angle - Math.PI / 6));
+        c.lineTo(tx - headLen * Math.cos(angle + Math.PI / 6), ty - headLen * Math.sin(angle + Math.PI / 6));
+        c.closePath(); c.fill();
+      }
+
+      // Done
+      document.getElementById('annDone').addEventListener('click', function() {
+        annotationData = canvas.toDataURL('image/png');
+        overlay.remove();
+        widget.classList.add('open');
+        // Show preview
+        var existing = document.getElementById('annotationPreview');
+        if (existing) existing.remove();
+        var preview = document.createElement('div');
+        preview.id = 'annotationPreview';
+        preview.className = 'annotation-preview';
+        preview.innerHTML = '<img src="' + annotationData + '" /><span>주석 캡처 첨부됨</span><button type="button" id="removeAnnotation">✕</button>';
+        form.insertBefore(preview, form.querySelector('.feedback-submit'));
+        document.getElementById('removeAnnotation').addEventListener('click', function() {
+          annotationData = null;
+          preview.remove();
+        });
+      });
+
+      // Cancel
+      document.getElementById('annCancel').addEventListener('click', function() {
+        overlay.remove();
+        widget.classList.add('open');
+      });
+
+      // Hide hint after first draw
+      canvas.addEventListener('mousedown', function() {
+        var hint = overlay.querySelector('.annotation-hint');
+        if (hint) hint.style.display = 'none';
+      }, { once: true });
+    }, 300);
+  }
+
+  window.startAnnotation = startAnnotation;
+})();
+
 // ===== SNS Share Functions =====
 const SHARE_URL = 'https://face-beauty.pages.dev/';
 const SHARE_TITLE = 'AI 얼굴 뷰티 시뮬레이터 - 무료 반영구 문신 미리보기';
