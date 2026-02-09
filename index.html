@@ -166,13 +166,20 @@
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "AI Face Beauty Simulator",
+    "alternateName": "AI 얼굴 뷰티 시뮬레이터",
     "url": "https://face-beauty.pages.dev/",
     "logo": "https://face-beauty.pages.dev/favicon.png",
+    "foundingDate": "2025",
+    "areaServed": "Worldwide",
+    "knowsLanguage": ["ko", "en", "ja", "zh"],
+    "description": "AI 얼굴 인식 기술을 활용한 무료 반영구 문신 시뮬레이션 웹 서비스. 눈썹, 아이라인, 입술 문신, 점 제거, 헤어라인 보정을 사진 한 장으로 미리 체험할 수 있습니다. 의료 진단 서비스가 아닌 시뮬레이션 도구입니다.",
     "contactPoint": {
       "@type": "ContactPoint",
       "email": "moneyqueen41@gmail.com",
-      "contactType": "customer service"
-    }
+      "contactType": "customer service",
+      "availableLanguage": ["Korean", "English"]
+    },
+    "sameAs": []
   }
   </script>
   <script type="application/ld+json">
@@ -1220,6 +1227,76 @@
       background: rgba(255,255,255,0.02);
     }
 
+    /* GEO: Top citable summary */
+    .geo-summary {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .geo-summary-inner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 28px;
+    }
+    .geo-definition {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.75;
+      margin-bottom: 14px;
+    }
+    .geo-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .geo-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      background: rgba(196,113,245,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(196,113,245,0.2);
+    }
+    .geo-notice {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.6;
+      padding: 10px 14px;
+      background: rgba(255,71,87,0.06);
+      border-left: 3px solid var(--danger);
+      border-radius: 4px;
+      margin: 0;
+    }
+
+    /* GEO: Reference list */
+    .reference-list {
+      list-style: none;
+      padding: 0;
+    }
+    .reference-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .reference-list li:last-child { border-bottom: none; }
+    .reference-list a {
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .reference-list a:hover { color: var(--accent2); text-decoration: underline; }
+    .reference-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 12px;
+      font-style: italic;
+    }
+
     /* Footer */
     .site-footer {
       background: var(--surface);
@@ -1337,6 +1414,24 @@
       완전 무료, 회원가입 불필요, 사진은 서버에 저장되지 않습니다.
     </p>
     <a href="#simulator" class="cta-btn" data-i18n="hero.cta">무료로 시작하기</a>
+  </section>
+
+  <!-- GEO: Citable summary block for AI engines (top-of-page structured text) -->
+  <section class="geo-summary" aria-label="서비스 요약">
+    <div class="geo-summary-inner">
+      <p class="geo-definition"><strong>AI 얼굴 뷰티 시뮬레이터</strong>는 face-api.js 기반 AI 얼굴 인식 기술로 눈썹 문신, 아이라인 문신, 입술 문신, 점 제거, 헤어라인 보정을 사진 위에 가상으로 적용해볼 수 있는 무료 웹 서비스입니다. 2026년 2월 기준 4개 국어(한국어·영어·일본어·중국어)를 지원하며, 사진은 브라우저에서만 처리되어 서버로 전송되지 않습니다.</p>
+      <div class="geo-pills">
+        <span class="geo-pill">눈썹 6가지 스타일</span>
+        <span class="geo-pill">아이라인 3가지 스타일</span>
+        <span class="geo-pill">입술 색상·그라데이션</span>
+        <span class="geo-pill">AI 점 제거</span>
+        <span class="geo-pill">헤어라인 보정</span>
+        <span class="geo-pill">완전 무료</span>
+        <span class="geo-pill">회원가입 불필요</span>
+        <span class="geo-pill">모바일 지원</span>
+      </div>
+      <p class="geo-notice">본 서비스는 시뮬레이션 도구이며, 의료 진단이나 시술을 대체하지 않습니다. 실제 시술은 전문 시술사와 상담 후 결정하세요.</p>
+    </div>
   </section>
 
   <div class="app" id="simulator">
@@ -1808,6 +1903,43 @@
       <h3>AI 뷰티 시뮬레이터를 시술 상담에 활용하는 방법</h3>
       <p>반영구 시술 전 AI 시뮬레이터로 미리보기 이미지를 만들어 시술사에게 보여주면, 원하는 스타일을 정확하게 전달할 수 있어 소통 오류를 줄일 수 있습니다. 사진을 업로드하고 눈썹 스타일, 색상, 두께를 조절한 결과를 PNG로 저장한 뒤, 상담 시 참고 자료로 활용해보세요. 시술사도 고객의 기대치를 명확히 파악할 수 있어 더 만족스러운 결과를 얻을 수 있습니다.</p>
     </article>
+  </section>
+
+  <!-- ===== Result Guide Section (GEO) ===== -->
+  <section class="content-section" id="result-guide">
+    <h2 class="section-title">시뮬레이션 결과 활용 가이드</h2>
+    <p class="section-subtitle">시뮬레이션 결과를 올바르게 해석하고 효과적으로 활용하는 방법을 안내합니다.</p>
+    <div class="article-content">
+      <h3>결과 이미지, 실제 시술과 얼마나 비슷한가요?</h3>
+      <p>본 시뮬레이터는 AI 얼굴 랜드마크 기반으로 눈썹·아이라인·입술 위치를 자동 배치하므로, 대략적인 위치와 형태를 참고하는 데 적합합니다. 다만 실제 반영구 시술은 피부 타입, 색소 흡수율, 시술자의 숙련도에 따라 결과가 달라질 수 있으므로, 시뮬레이션 결과는 <strong>"방향성 참고용"</strong>으로 활용하시기 바랍니다.</p>
+
+      <h3>시술 상담 시 이렇게 활용하세요</h3>
+      <p>1단계: 원하는 스타일을 시뮬레이터에서 적용 → 2단계: 색상·두께·위치를 미세 조정 → 3단계: 결과를 PNG로 저장 → 4단계: 시술사에게 이미지를 보여주며 상담. 이렇게 하면 "이런 느낌으로 해주세요"라고 정확하게 전달할 수 있어 소통 오류가 크게 줄어듭니다.</p>
+
+      <h3>눈썹 스타일 선택 팁</h3>
+      <p>얼굴형이 둥근 편이면 <strong>아치형·각진형</strong>이 얼굴 윤곽을 살려줍니다. 긴 얼굴형이면 <strong>일자형·소프트아치</strong>가 가로 라인을 강조하여 균형감을 줍니다. 시뮬레이터에서 2~3가지를 번갈아 적용해보면 차이를 확실히 비교할 수 있습니다.</p>
+
+      <h3>점 제거 시뮬레이션의 한계</h3>
+      <p>AI 인페인팅으로 점을 지운 모습은 자연스럽게 보이지만, 실제 레이저 시술 결과와는 차이가 있을 수 있습니다. 특히 크기가 큰 점(5mm 이상)이나 돌출된 점은 피부과 전문의와 상담하여 적합한 시술 방법(레이저, 절제 등)을 결정하시기 바랍니다. 본 시뮬레이터의 결과는 미용 목적의 참고용이며 의료 진단이 아닙니다.</p>
+
+      <h3>저장한 이미지의 활용 범위</h3>
+      <p>시뮬레이션 결과 이미지는 사용자 본인에게 저작권이 있으므로, 시술 상담 참고 자료, SNS 공유, 메이크업 레퍼런스 등 개인적인 용도로 자유롭게 활용할 수 있습니다. 단, 타인의 사진을 무단으로 사용하는 것은 초상권 침해에 해당하므로 주의하세요.</p>
+    </div>
+  </section>
+
+  <!-- ===== References Section (GEO: External authority links) ===== -->
+  <section class="content-section" id="references">
+    <h2 class="section-title">참고 자료 및 관련 정보</h2>
+    <p class="section-subtitle">반영구 문신, AI 뷰티 기술에 대한 신뢰할 수 있는 외부 자료를 소개합니다.</p>
+    <div class="article-content">
+      <ul class="reference-list">
+        <li><a href="https://github.com/vladmandic/face-api" target="_blank" rel="noopener noreferrer">face-api.js — 본 시뮬레이터에 사용된 AI 얼굴 인식 라이브러리 (GitHub)</a></li>
+        <li><a href="https://docs.opencv.org/4.9.0/" target="_blank" rel="noopener noreferrer">OpenCV.js 공식 문서 — 점 제거 인페인팅에 사용된 컴퓨터 비전 라이브러리</a></li>
+        <li><a href="https://www.aad.org/public/cosmetic/younger-looking/tattoo-removal" target="_blank" rel="noopener noreferrer">미국피부과학회(AAD) — 문신과 피부 관리 정보</a></li>
+        <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API" target="_blank" rel="noopener noreferrer">MDN Web Docs — HTML5 Canvas API (시뮬레이션 렌더링 기술)</a></li>
+      </ul>
+      <p class="reference-note">위 링크는 정보 제공 목적의 외부 참고 자료이며, 본 서비스와 직접적인 제휴 관계는 아닙니다. 최종 접속일: 2026년 2월</p>
+    </div>
   </section>
 
   <!-- ===== Privacy Policy ===== -->
